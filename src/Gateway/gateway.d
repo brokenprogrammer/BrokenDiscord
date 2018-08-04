@@ -1,5 +1,11 @@
 module brokendiscord.gateway.gateway;
 
+import brokendiscord.client;
+
+import vibe.core.core,
+       vibe.inet.url,
+       vibe.http.websockets;
+
 /* Gateway version */
 const ubyte GATEWAY_VERSION = 6;
 
@@ -34,7 +40,7 @@ class Gateway
 
         this.eventEmitter = new Emitter;
         this.eventEmitter.listen!Ready(toDelegate(&this.handleReadyEvent));
-        this.eventEmitter.listen!Resumed(toDelegate(&this.handleResumedEvent);
+        this.eventEmitter.listen!Resumed(toDelegate(&this.handleResumedEvent));
 
         //client.events = this.eventEmitter;
 

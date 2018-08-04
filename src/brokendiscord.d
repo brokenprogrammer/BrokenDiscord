@@ -1,3 +1,5 @@
+module brokendiscord.brokendiscord;
+
 import std.stdio;
 
 void main()

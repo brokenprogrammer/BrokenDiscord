@@ -1,5 +1,8 @@
 module brokendiscord.client;
 
+import brokendiscord.shardinfo,
+       brokendiscord.gateway.gateway;
+
 abstract class Client 
 {
     /* Client authentication token. */
