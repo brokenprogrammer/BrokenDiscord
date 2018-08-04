@@ -1,0 +1,14 @@
+{
+	"name": "brokendiscord",
+	"authors": [
+		"Oskar Mendel"
+	],
+	"description": "A Discord Library written in D.",
+	"copyright": "Copyright © 2018, Oskar Mendel",
+	"license": "MIT",
+	"targetType": "library",
+	"dependencies": {
+		"vibe-d:core": "~>0.8.0",
+    	"vibe-d:http": "~>0.8.0"
+	}
+}
