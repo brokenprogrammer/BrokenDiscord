@@ -1,10 +1,12 @@
 module BrokenDiscord.Gateway
 
 open System
+open System.Threading
 open System.Threading.Tasks
 open System.Net.WebSockets
 open Microsoft.AspNetCore.Http
 open Newtonsoft.Json.Linq
+open System.Text
 
 // OP = opcode 
 // d = event data
@@ -37,9 +39,17 @@ type Gateway () =
         sockets
         |> List.choose (fun s -> if s <> socket then Some s else None)
     
-    
+    let sendMessage =
+        fun (socket : WebSocket) (message : string) ->
+            let buffer = Encoding.UTF8.GetBytes(message)
+            let segment = new ArraySegment<byte>(buffer)
 
-    let connect (context : HttpContext) =
+            if socket.State = WebSocketState.Open then
+                do socket.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None) |> ignore
+            else
+                sockets <- removeSocket sockets socket
+
+    member this.connect (context : HttpContext) =
         async {
             if context.Request.Path = PathString("wss://gateway.discord.gg/?v=6&encoding=json") then
                 match context.WebSockets.IsWebSocketRequest with
@@ -49,11 +59,14 @@ type Gateway () =
 
                     let buffer : byte[] = Array.zeroCreate 4096
                     let! ct = Async.CancellationToken
-
-
+                    
                     websocket.ReceiveAsync(new ArraySegment<byte>(buffer), ct)
                         |> Async.AwaitTask
                         |> ignore
+                    
+                    let content = Encoding.UTF8.GetString buffer
+                    printf "%s" content
+
 
                 | false -> context.Response.StatusCode <- 400
         } |> Async.StartAsTask :> Task
