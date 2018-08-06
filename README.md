@@ -1,2 +1,2 @@
 # BrokenDiscord
-Discord Library written in D
+Discord Library written in F#
