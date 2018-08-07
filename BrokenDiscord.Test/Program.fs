@@ -6,7 +6,7 @@ open System
 
 [<EntryPoint>]
 let main argv = 
-    Gateway().con() |> Async.RunSynchronously
-    printfn "%A" argv
+    use g = new Gateway()
+    g.con() |> Async.RunSynchronously
     Console.ReadLine() |> ignore
     0 // return an integer exit code
