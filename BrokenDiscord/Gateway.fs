@@ -40,7 +40,21 @@ type HeartbeatPacket (seq : int) =
     interface ISerializable with
         member this.Serialize() =
             JsonConvert.SerializeObject(this)
+
+type IdentifyPacket (token : string, shard : int, numshards : int) =
+    //TODO: Better way to construct the properties.
+    let getProperties = 
+        new JObject(new JProperty("$os", "linux"), new JProperty("$browser", "brokendiscord"), new JProperty("$device", "brokendiscord"))
     
+    member this.token = token
+    member this.properties = getProperties
+    member this.compress = true
+    member this.large_threshold = 250
+    member this.shard =  [|shard; numshards|]
+
+    interface ISerializable with
+        member this.Serialize() =
+            JsonConvert.SerializeObject(this)
 
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
@@ -70,6 +84,9 @@ type Gateway () =
 
             let hert = new HeartbeatPacket(d.["heartbeat_interval"].Value<int>())
             printf "%s" ((hert :> ISerializable).Serialize())
+
+            let exIdent = new IdentifyPacket("my_token", 1, 10)
+            printf "%s" ((exIdent :> ISerializable).Serialize())
         }
     
     let Send (message : string) = 
