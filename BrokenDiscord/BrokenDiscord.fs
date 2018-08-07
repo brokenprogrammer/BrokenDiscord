@@ -7,7 +7,4 @@
 
 type BrokenDiscord() =
     let apiString = "https://discordapp.com/api/v6/"
-    let gatewayString = "wss://gateway.discord.gg/?v=6&encoding=json"
-
-
     member this.X = "F#"
