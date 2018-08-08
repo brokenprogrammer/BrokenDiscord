@@ -9,12 +9,12 @@ open Newtonsoft.Json.Linq
 open Newtonsoft.Json
 open System.IO
 
-//TODO: Make use of this object
+//TODO: Make use of this object, Every object sent and receieved should be wrapped in the payload type
 // OP = opcode 
 // d = event data
 // s = sequence number
 // t = event name
-type Payload = {op:int; d:JObject; s:int; t:string}
+type Payload = {op:int; d:string;}// s:int; t:string}
 
 type OpCode = 
     | dispatch = 0
@@ -34,29 +34,36 @@ type ISerializable =
     abstract member Serialize : unit -> string
 
 type HeartbeatPacket (seq : int) =
-    member this.op = OpCode.heartbeat
     member this.seq = seq
 
     interface ISerializable with
         member this.Serialize() =
-            JsonConvert.SerializeObject(this)
+            let j = 
+                new JObject(
+                    new JProperty("op", 1), 
+                    new JProperty("d", JObject.FromObject(this)))
+            j.ToString()
 
 type IdentifyPacket (token : string, shard : int, numshards : int) =
     //TODO: Better way to construct the properties.
     let getProperties = 
-        new JObject(new JProperty("$os", "windows"), 
+        new JObject(new JProperty("$os", "linux"), 
             new JProperty("$browser", "brokendiscord"), 
             new JProperty("$device", "brokendiscord"))
     
     member this.token = token
     member this.properties = getProperties
-    member this.compress = true
+    member this.compress = false //true TODO: Change this to true when zlib decryption has been added.
     member this.large_threshold = 250
     member this.shard =  [|shard; numshards|]
 
     interface ISerializable with
         member this.Serialize() =
-            JsonConvert.SerializeObject(this)
+            let j = 
+                new JObject(
+                    new JProperty("op", 2), 
+                    new JProperty("d", JObject.FromObject(this)))
+            j.ToString()
 
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
@@ -152,7 +159,7 @@ type Gateway () =
         }
 
     // Test method that calls the Run function with the target websocket uri
-    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAfQ.87mW04xetbiV9ew3ly_59Oiai_8"
+    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL4"
 
     interface IDisposable with
         member this.Dispose() = 
