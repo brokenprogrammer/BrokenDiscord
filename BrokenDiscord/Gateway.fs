@@ -9,6 +9,7 @@ open Newtonsoft.Json.Linq
 open Newtonsoft.Json
 open System.IO
 
+//TODO: Make use of this object
 // OP = opcode 
 // d = event data
 // s = sequence number
@@ -43,7 +44,7 @@ type HeartbeatPacket (seq : int) =
 type IdentifyPacket (token : string, shard : int, numshards : int) =
     //TODO: Better way to construct the properties.
     let getProperties = 
-        new JObject(new JProperty("$os", "linux"), 
+        new JObject(new JProperty("$os", "windows"), 
             new JProperty("$browser", "brokendiscord"), 
             new JProperty("$device", "brokendiscord"))
     
@@ -60,14 +61,25 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
 
+    let Send (packet : ISerializable) = 
+        async {
+            let buffer = Encoding.UTF8.GetBytes(packet.Serialize())
+            
+            printf "%s" ("Sending packet" + packet.Serialize())
+
+            do! socket.SendAsync(ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None) |> Async.AwaitTask
+            printf "%s" "Sent packet...\n"
+        }
+
     let rec heartbeat (interval : int) =
         async {
             do! interval |> Task.Delay |> Async.AwaitTask |> Async.Ignore
-            // TODO: Send heartbeat packet into the send function
-            printf "%s" "Sent Heartbeat packet"
+            do! Send(HeartbeatPacket(interval)) |> Async.Ignore
+            printf "%s" "Sent Heartbeat packet\n"
             do! heartbeat interval
         }
 
+    //TODO: better naming for this function
     let parseMessage (rawJson : JObject) =
         let op = enum<OpCode>(rawJson.["op"].Value<int>())
         
@@ -83,7 +95,7 @@ type Gateway () =
         | OpCode.requestGuildMembers -> 8 |> ignore
         | OpCode.invalidSession -> 9 |> ignore
         | OpCode.hello -> 
-            printf "%s" "Receieved Hello opcode, starting heartbeater..."
+            printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
             let heartbeatInterval = rawJson.["d"].["heartbeat_interval"].Value<int>()
             heartbeat(heartbeatInterval) |> Async.Start
         | OpCode.heartbeatACK -> 11 |> ignore
@@ -91,17 +103,22 @@ type Gateway () =
 
     let Receive () = 
         async {
+            printf "%s" "Starting to recieve"
             let buffer : byte[] = Array.zeroCreate 4096
-            do! socket.ReceiveAsync(ArraySegment<byte>(buffer), CancellationToken.None) |> Async.AwaitTask |> Async.Ignore
-            let content = Encoding.UTF8.GetString buffer
+            let! result = socket.ReceiveAsync(ArraySegment<byte>(buffer), CancellationToken.None) |> Async.AwaitTask
+            
+            let content = 
+                match result.Count with
+                | 0 -> ""
+                | _ -> buffer.[0..result.Count] |> Encoding.UTF8.GetString
+
+
             printf "%s" content
 
             //TODO: Retrieve hello packet, construct heartbeat packet using it and initiate sending heartbeats
-
-            //TODO: Send identification packet
-
-            parseMessage(JObject.Parse(content))
-            printf "%s" "finhed parsing"
+            if content <> "" || content = null then
+                parseMessage(JObject.Parse(content))
+            printf "%s" "finished receive\n"
             
             // Bellow is test code.
             //let obj = JObject.Parse(content)
@@ -114,27 +131,28 @@ type Gateway () =
             //let exIdent = new IdentifyPacket("my_token", 1, 10)
             //printf "%s" ((exIdent :> ISerializable).Serialize())
         }
-    
-    //TODO: Change into taking in a packet type instead of string
-    let Send (message : string) = 
-        async {
-            let buffer = Encoding.UTF8.GetBytes(message)
-            
-            do! socket.SendAsync(ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None) |> Async.AwaitTask
-        }
 
-    let Run (uri : string) = 
+    let Run (uri : string) (token : string) = 
         async {
-            printf "%s" "Connecting..."
+            printf "%s" "Connecting...\n"
             
             do! socket.ConnectAsync(Uri(uri), CancellationToken.None) |> Async.AwaitTask
-            do! Async.Parallel([Receive()]) |> Async.Ignore
+            
+            //TODO: Send identification packet
+            let identification = IdentifyPacket(token, 1, 10)
+            //do! Receive() |> Async.Ignore
+            do! Send(identification) |> Async.Ignore
 
-            // TODO: Some loop that continues listening to messages.
+            while socket.State = WebSocketState.Open do
+                //TODO: Recieve should return something instead of the logic that is currently present in the recieve function
+                do! Receive() |> Async.Ignore
+                printf "%s" "End of run loop \n"
+            
+            printf "%s" (socket.State.ToString())
         }
 
     // Test method that calls the Run function with the target websocket uri
-    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json"
+    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAfQ.87mW04xetbiV9ew3ly_59Oiai_8"
 
     interface IDisposable with
         member this.Dispose() = 
