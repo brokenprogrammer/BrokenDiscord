@@ -6,8 +6,6 @@ open System.Threading
 open System.Threading.Tasks
 open System.Net.WebSockets
 open Newtonsoft.Json.Linq
-open Newtonsoft.Json
-open System.IO
 
 //TODO: Make use of this object, Every object sent and receieved should be wrapped in the payload type
 // OP = opcode 
@@ -122,21 +120,11 @@ type Gateway () =
 
             printf "%s" content
 
-            //TODO: Retrieve hello packet, construct heartbeat packet using it and initiate sending heartbeats
+            //TODO: Parse and read the ready event.
             if content <> "" || content = null then
                 parseMessage(JObject.Parse(content))
             printf "%s" "finished receive\n"
             
-            // Bellow is test code.
-            //let obj = JObject.Parse(content)
-            //let d = obj.GetValue("d")
-            //printf "%d" (d.["heartbeat_interval"].Value<int>())
-
-            //let hert = new HeartbeatPacket(d.["heartbeat_interval"].Value<int>())
-            //printf "%s" ((hert :> ISerializable).Serialize())
-
-            //let exIdent = new IdentifyPacket("my_token", 1, 10)
-            //printf "%s" ((exIdent :> ISerializable).Serialize())
         }
 
     let Run (uri : string) (token : string) = 
@@ -145,9 +133,7 @@ type Gateway () =
             
             do! socket.ConnectAsync(Uri(uri), CancellationToken.None) |> Async.AwaitTask
             
-            //TODO: Send identification packet
             let identification = IdentifyPacket(token, 1, 10)
-            //do! Receive() |> Async.Ignore
             do! Send(identification) |> Async.Ignore
 
             while socket.State = WebSocketState.Open do
