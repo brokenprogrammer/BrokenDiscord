@@ -83,6 +83,46 @@ type Gateway () =
             printf "%s" "Sent Heartbeat packet\n"
             do! heartbeat interval
         }
+    
+    let handleDispatch (rawJson :JObject) =
+        let s = rawJson.["s"].Value<int>() //TODO: Update the heartbeat sequence to this..
+
+        let t = rawJson.["t"].Value<string>()
+
+        //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
+        //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
+        match t with
+        | "READY" -> ""
+        | "RESUMED" -> ""
+        | "CHANNEL_CREATE" -> ""
+        | "CHANNEL_UPDATE" -> ""
+        | "CHANNEL_DELETE" -> ""
+        | "CHANNEL_PINS_UPDATE" -> ""
+        | "GUILD_BAN_ADD" -> ""
+        | "GUILD_BAN_REMOVE" -> ""
+        | "GUILD_CREATE" -> ""
+        | "GUILD_UPDATE" -> ""
+        | "GUILD_DELETE" -> ""
+        | "GUILD_EMOJIS_UPDATE" -> ""
+        | "GUILD_INTEGRATIONS_UPDATE" -> ""
+        | "GUILD_MEMBERS_CHUNK" -> ""
+        | "GUILD_MEMBER_ADD" -> ""
+        | "GUILD_MEMBER_UPDATE" -> ""
+        | "GUILD_MEMBER_REMOVE" -> ""
+        | "GUILD_ROLE_CREATE" -> ""
+        | "GUILD_ROLE_UPDATE" -> ""
+        | "GUILD_ROLE_DELETE" -> ""
+        | "MESSAGE_CREATE" -> ""
+        | "MESSAGE_UPDATE" -> ""
+        | "MESSAGE_DELETE" -> ""
+        | "PRESENCE_UPDATE" -> ""
+        | "TYPING_START" -> ""
+        | "USER_SETTINGS_UPDATE" -> ""
+        | "USER_UPDATE" -> ""
+        | "VOICE_STATE_UPDATE" -> ""
+        | "VOICE_SERVER_UPDATE" -> ""
+        | "MESSAGE_DELETE_BULK" -> ""
+        | _ -> "" // TODO: Log Unhandled event
 
     //TODO: better naming for this function
     let parseMessage (rawJson : JObject) =
@@ -145,7 +185,7 @@ type Gateway () =
         }
 
     // Test method that calls the Run function with the target websocket uri
-    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL4"
+    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL"
 
     interface IDisposable with
         member this.Dispose() = 
