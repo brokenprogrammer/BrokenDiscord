@@ -8,6 +8,7 @@ open System.Threading
 open System.Threading.Tasks
 open System.Net.WebSockets
 open Newtonsoft.Json.Linq
+open BrokenDiscord.Types
 
 type OpCode = 
     | dispatch = 0
@@ -79,52 +80,59 @@ type Gateway () =
             do! heartbeat interval
         }
     
+    let readyEvent = new Event<ReadyEventArgs>()
+
     let handleDispatch (rawJson :JObject) =
         let s = rawJson.["s"].Value<int>() //TODO: Update the heartbeat sequence to this..
 
         let t = rawJson.["t"].Value<string>()
 
+        printf "%s %s" "\nHandling DISPATCH " t
+        printf "%s" "\n"
+        
         //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
         //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
+        //TODO: Properly handle send the correct payload.
         match t with
-        | "READY" -> ""
-        | "RESUMED" -> ""
-        | "CHANNEL_CREATE" -> ""
-        | "CHANNEL_UPDATE" -> ""
-        | "CHANNEL_DELETE" -> ""
-        | "CHANNEL_PINS_UPDATE" -> ""
-        | "GUILD_BAN_ADD" -> ""
-        | "GUILD_BAN_REMOVE" -> ""
-        | "GUILD_CREATE" -> ""
-        | "GUILD_UPDATE" -> ""
-        | "GUILD_DELETE" -> ""
-        | "GUILD_EMOJIS_UPDATE" -> ""
-        | "GUILD_INTEGRATIONS_UPDATE" -> ""
-        | "GUILD_MEMBERS_CHUNK" -> ""
-        | "GUILD_MEMBER_ADD" -> ""
-        | "GUILD_MEMBER_UPDATE" -> ""
-        | "GUILD_MEMBER_REMOVE" -> ""
-        | "GUILD_ROLE_CREATE" -> ""
-        | "GUILD_ROLE_UPDATE" -> ""
-        | "GUILD_ROLE_DELETE" -> ""
-        | "MESSAGE_CREATE" -> ""
-        | "MESSAGE_UPDATE" -> ""
-        | "MESSAGE_DELETE" -> ""
-        | "PRESENCE_UPDATE" -> ""
-        | "TYPING_START" -> ""
-        | "USER_SETTINGS_UPDATE" -> ""
-        | "USER_UPDATE" -> ""
-        | "VOICE_STATE_UPDATE" -> ""
-        | "VOICE_SERVER_UPDATE" -> ""
-        | "MESSAGE_DELETE_BULK" -> ""
-        | _ -> "" // TODO: Log Unhandled event
+        | "READY" -> readyEvent.Trigger(ReadyEventArgs({op=11; d="TEST"; s=12; t="ads"}))
+        | "RESUMED" -> ()
+        | "CHANNEL_CREATE" -> ()
+        | "CHANNEL_UPDATE" -> ()
+        | "CHANNEL_DELETE" -> ()
+        | "CHANNEL_PINS_UPDATE" -> ()
+        | "GUILD_BAN_ADD" -> ()
+        | "GUILD_BAN_REMOVE" -> ()
+        | "GUILD_CREATE" -> ()
+        | "GUILD_UPDATE" -> ()
+        | "GUILD_DELETE" -> ()
+        | "GUILD_EMOJIS_UPDATE" -> ()
+        | "GUILD_INTEGRATIONS_UPDATE" -> ()
+        | "GUILD_MEMBERS_CHUNK" -> ()
+        | "GUILD_MEMBER_ADD" -> ()
+        | "GUILD_MEMBER_UPDATE" -> ()
+        | "GUILD_MEMBER_REMOVE" -> ()
+        | "GUILD_ROLE_CREATE" -> ()
+        | "GUILD_ROLE_UPDATE" -> ()
+        | "GUILD_ROLE_DELETE" -> ()
+        | "MESSAGE_CREATE" -> ()
+        | "MESSAGE_UPDATE" -> ()
+        | "MESSAGE_DELETE" -> ()
+        | "PRESENCE_UPDATE" -> ()
+        | "TYPING_START" -> ()
+        | "USER_SETTINGS_UPDATE" -> ()
+        | "USER_UPDATE" -> ()
+        | "VOICE_STATE_UPDATE" -> ()
+        | "VOICE_SERVER_UPDATE" -> ()
+        | "MESSAGE_DELETE_BULK" -> ()
+        | _ -> () // TODO: Log Unhandled event
 
     //TODO: better naming for this function
     let parseMessage (rawJson : JObject) =
         let op = enum<OpCode>(rawJson.["op"].Value<int>())
         
         match op with
-        | OpCode.dispatch -> 0 |> ignore
+        | OpCode.dispatch -> 
+            handleDispatch rawJson
         | OpCode.heartbeat -> 1 |> ignore
         | OpCode.identify -> 2 |> ignore
         | OpCode.statusUpdate -> 3 |> ignore
@@ -178,8 +186,6 @@ type Gateway () =
             
             printf "%s" (socket.State.ToString())
         }
-    
-    let readyEvent = new DelegateEvent<EventHandler<ReadyEventArgs>>()
 
     [<CLIEvent>]
     member this.ReadyEvent = readyEvent.Publish
