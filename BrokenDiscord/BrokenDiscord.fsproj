@@ -52,8 +52,11 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Content Include="packages.config" />
+    <Compile Include="Types.fs" />
     <Compile Include="BrokenDiscord.fs" />
+    <Compile Include="Events.fs" />
     <Compile Include="Gateway.fs" />
+    <Compile Include="Client.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.AspNetCore.Http.Abstractions">

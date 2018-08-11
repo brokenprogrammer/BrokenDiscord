@@ -1,18 +1,13 @@
 module BrokenDiscord.Gateway
 
+open Events
+
 open System
 open System.Text
 open System.Threading
 open System.Threading.Tasks
 open System.Net.WebSockets
 open Newtonsoft.Json.Linq
-
-//TODO: Make use of this object, Every object sent and receieved should be wrapped in the payload type
-// OP = opcode 
-// d = event data
-// s = sequence number
-// t = event name
-type Payload = {op:int; d:string;}// s:int; t:string}
 
 type OpCode = 
     | dispatch = 0
@@ -183,9 +178,14 @@ type Gateway () =
             
             printf "%s" (socket.State.ToString())
         }
+    
+    let readyEvent = new DelegateEvent<EventHandler<ReadyEventArgs>>()
+
+    [<CLIEvent>]
+    member this.ReadyEvent = readyEvent.Publish
 
     // Test method that calls the Run function with the target websocket uri
-    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL"
+    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL4"
 
     interface IDisposable with
         member this.Dispose() = 
