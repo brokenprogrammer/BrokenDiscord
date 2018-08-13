@@ -155,7 +155,7 @@ type Gateway () =
     let Receive () = 
         async {
             printf "%s" "Starting to recieve"
-            let buffer : byte[] = Array.zeroCreate 4096
+            let buffer : byte[] = Array.zeroCreate 50000 //TODO: Do we have to specify a size?
             let! result = socket.ReceiveAsync(ArraySegment<byte>(buffer), CancellationToken.None) |> Async.AwaitTask
             
             let content = 
@@ -179,7 +179,7 @@ type Gateway () =
             
             do! socket.ConnectAsync(Uri(uri), CancellationToken.None) |> Async.AwaitTask
             
-            let identification = IdentifyPacket(token, 1, 10)
+            let identification = IdentifyPacket(token, 0, 1)
             do! Send(identification) |> Async.Ignore
 
             while socket.State = WebSocketState.Open do
