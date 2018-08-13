@@ -2,6 +2,10 @@
 
 open System
 
+//TODO: Go through all types and fix TODOs and conventions.
+//TODO: Should flags, int types be represented as their type or as ints?
+
+//TODO: This payload object might be isolated to the Gateway module.
 //TODO: Make use of this object, Every object sent and receieved should be wrapped in the payload type
 // OP = opcode 
 // d = event data
