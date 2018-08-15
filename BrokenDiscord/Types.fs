@@ -3,7 +3,6 @@
 open System
 
 //TODO: Go through all types and fix TODOs and conventions.
-//TODO: Should flags, int types be represented as their type or as ints?
 
 //TODO: This payload object might be isolated to the Gateway module.
 //TODO: Make use of this object, Every object sent and receieved should be wrapped in the payload type
@@ -74,7 +73,7 @@ type Embed = {
         Video       : EmbedVideo option;
         Provider    : EmbedProvider option;
         Author      : EmbedAuthor option;
-        Fields      : array<EmbedField> option;
+        Fields      : list<EmbedField> option;
     }
 
 type Attachment = {
@@ -113,7 +112,7 @@ type Role = {
 type Emoji = {
         Id              : Snowflake;
         Name            : string;
-        Roles           : array<Role> option;
+        Roles           : list<Role> option;
         User            : User option;
         RequireColons   : bool option;
         Managed         : bool option;
@@ -125,9 +124,7 @@ type Reaction = {
         Me      : bool;
         Emoji   : Emoji;
     }
-
-//TODO: Naming conventions
-//TODO: Make use of this in the Channel type
+    
 type ChannelType = 
     | GuildText     = 0
     | DM            = 1
@@ -140,14 +137,14 @@ type Channel = {
         Type                    : ChannelType;
         GuildID                 : Snowflake option;
         Position                : int option;
-        PermissionOverwrites    : array<Overwrite>;
+        PermissionOverwrites    : list<Overwrite>;
         Name                    : string option;
         Topic                   : string option;
         NSFW                    : bool option;
         LastMessageID           : Snowflake option;
         Bitrate                 : int option;
         UserLimit               : int option;
-        Recipients              : array<User>;
+        Recipients              : list<User>;
         Icon                    : string option;
         OwnerID                 : Snowflake option;
         ApplicationID           : Snowflake option;
@@ -190,11 +187,11 @@ type Message = {
         EditedTimestamp : int option;
         TTS             : bool;
         MentionEveryone : bool;
-        Mentions        : array<User>;
-        MentionRoles    : array<Role>
-        Attachments     : array<Attachment>
-        Embeds          : array<Embed>
-        Reactions       : array<Reaction> option
+        Mentions        : list<User>;
+        MentionRoles    : list<Role>
+        Attachments     : list<Attachment>
+        Embeds          : list<Embed>
+        Reactions       : list<Reaction> option
         Nounce          : Snowflake option;
         Pinned          : bool;
         WebhookId       : Snowflake option;
@@ -210,7 +207,7 @@ type ActivityType =
 
 type ActivityTimestamps = {Start : int option; End : int option}
 
-type ActivityParty = {Id : string option; Size : array<int> option}
+type ActivityParty = {Id : string option; Size : list<int> option}
 
 type ActivityAssets = {
         LargeImage  : string option;
@@ -263,7 +260,7 @@ type VoiceState = {
 
 type PresenceUpdate = {
         User    : User;
-        Roles   : array<Snowflake>;
+        Roles   : list<Snowflake>;
         Game    : Activity option;
         GuildId : Snowflake;
         Status  : string;
@@ -272,7 +269,7 @@ type PresenceUpdate = {
 type GuildMember = {
         User        : User;
         Nick        : string option;
-        Roles       : array<Snowflake>;
+        Roles       : list<Snowflake>;
         JoinedAt    : int; //TODO: ISO8601 timestamp
         Deaf        : bool;
         Mute        : bool;
@@ -294,9 +291,9 @@ type Guild =  {
         VerificationLevel               : int;
         DefaultMessageNotifications     : int;
         ExplicitContentFilter           : int;
-        Roles                           : array<Role>;
-        Emojis                          : array<Emoji>;
-        Features                        : array<string>;
+        Roles                           : list<Role>;
+        Emojis                          : list<Emoji>;
+        Features                        : list<string>;
         MFALevel                        : int;
         ApplicationId                   : Snowflake option;
         WidgetEnabled                   : bool option;
@@ -307,8 +304,8 @@ type Guild =  {
         Large                           : bool option;
         Unavailable                     : bool option;
         MemberCount                     : int option;
-        VoiceStates                     : array<VoiceState> option;
-        Members                         : array<GuildMember> option;
-        Channels                        : array<Channel> option;
-        Presences                       : array<PresenceUpdate> option;
+        VoiceStates                     : list<VoiceState> option;
+        Members                         : list<GuildMember> option;
+        Channels                        : list<Channel> option;
+        Presences                       : list<PresenceUpdate> option;
     }
