@@ -1,7 +1,12 @@
 ﻿// Learn more about F# at http://fsharp.org
 // See the 'F# Tutorial' project for more help.
-module Program  
-    let [<EntryPoint>] main _ = 0
+
+module Program
+
+let x = "X"
+
+//module Program  
+//    let [<EntryPoint>] main _ = 0
 
 //open System
 //open BrokenDiscord
