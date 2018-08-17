@@ -1,14 +1,17 @@
 module BrokenDiscord.Gateway
 
-open Events
 
 open System
 open System.Text
 open System.Threading
 open System.Threading.Tasks
 open System.Net.WebSockets
+
 open Newtonsoft.Json.Linq
+
+open BrokenDiscord.Events
 open BrokenDiscord.Types
+open Newtonsoft.Json
 
 type OpCode = 
     | dispatch = 0
@@ -59,6 +62,10 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
                     new JProperty("d", JObject.FromObject(this)))
             j.ToString()
 
+let jsonConverter = Fable.JsonConverter() :> JsonConverter
+let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
+let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
 
@@ -82,10 +89,10 @@ type Gateway () =
     
     let readyEvent = new Event<ReadyEventArgs>()
 
-    let handleDispatch (rawJson :JObject) =
-        let s = rawJson.["s"].Value<int>() //TODO: Update the heartbeat sequence to this..
+    let handleDispatch (payload : Payload) =
+        let s = payload.s //TODO: Update the heartbeat sequence to this..
 
-        let t = rawJson.["t"].Value<string>()
+        let t = payload.t.Value
 
         printf "%s %s" "\nHandling DISPATCH " t
         printf "%s" "\n"
@@ -94,7 +101,7 @@ type Gateway () =
         //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
         //TODO: Properly handle send the correct payload.
         match t with
-        | "READY" -> readyEvent.Trigger(ReadyEventArgs({op=11; d="TEST"; s=12; t="ads"}))
+        | "READY" -> readyEvent.Trigger(ReadyEventArgs({op=11; d=new JObject(new JProperty("op", 2)); s = Some 12; t = Some "ads"}))
         | "RESUMED" -> ()
         | "CHANNEL_CREATE" -> ()
         | "CHANNEL_UPDATE" -> ()
@@ -130,12 +137,12 @@ type Gateway () =
         | _ -> () // TODO: Log Unhandled event
 
     //TODO: better naming for this function
-    let parseMessage (rawJson : JObject) =
-        let op = enum<OpCode>(rawJson.["op"].Value<int>())
+    let parseMessage (payload : Payload) =
+        let op = enum<OpCode>(payload.op)
         
         match op with
         | OpCode.dispatch -> 
-            handleDispatch rawJson
+            handleDispatch payload
         | OpCode.heartbeat -> 1 |> ignore
         | OpCode.identify -> 2 |> ignore
         | OpCode.statusUpdate -> 3 |> ignore
@@ -147,7 +154,7 @@ type Gateway () =
         | OpCode.invalidSession -> 9 |> ignore
         | OpCode.hello -> 
             printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
-            let heartbeatInterval = rawJson.["d"].["heartbeat_interval"].Value<int>()
+            let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
             heartbeat(heartbeatInterval) |> Async.Start
         | OpCode.heartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
@@ -155,22 +162,18 @@ type Gateway () =
     let Receive () = 
         async {
             printf "%s" "Starting to recieve"
-            let buffer : byte[] = Array.zeroCreate 50000 //TODO: Do we have to specify a size?
+            let buffer = Array.zeroCreate<byte> 20000 //TODO: Do we have to specify a size?
             let! result = socket.ReceiveAsync(ArraySegment<byte>(buffer), CancellationToken.None) |> Async.AwaitTask
             
             let content = 
                 match result.Count with
-                | 0 -> ""
-                | _ -> buffer.[0..result.Count] |> Encoding.UTF8.GetString
-
-
-            printf "%s" content
-
-            //TODO: Parse and read the ready event.
-            if content <> "" || content = null then
-                parseMessage(JObject.Parse(content))
-            printf "%s" "finished receive\n"
+                | 0 -> None
+                | _ -> buffer.[0..result.Count] |> Encoding.UTF8.GetString |> ofJson<Payload> |> Some
             
+            if content.IsSome then
+                parseMessage(content.Value)
+            
+            printf "%s" "finished receive\n"
         }
 
     let Run (uri : string) (token : string) = 

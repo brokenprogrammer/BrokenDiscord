@@ -1,6 +1,7 @@
 ﻿module BrokenDiscord.Types
 
 open System
+open Newtonsoft.Json.Linq
 
 //TODO: Go through all types and fix TODOs and conventions.
 
@@ -10,7 +11,7 @@ open System
 // d = event data
 // s = sequence number
 // t = event name
-type Payload = {op:int; d:string; s:int; t:string}
+type Payload = {op : int; d : JObject; s : int option; t : string option}
 
 type Snowflake = uint64
 
