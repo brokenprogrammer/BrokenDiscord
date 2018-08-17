@@ -1,18 +1,17 @@
 module BrokenDiscord.Gateway
 
-
 open System
+open System.IO
+open System.Net.WebSockets
 open System.Text
 open System.Threading
 open System.Threading.Tasks
-open System.Net.WebSockets
 
+open Newtonsoft.Json
 open Newtonsoft.Json.Linq
 
 open BrokenDiscord.Events
 open BrokenDiscord.Types
-open Newtonsoft.Json
-open System.IO
 
 type OpCode = 
     | dispatch = 0
@@ -28,6 +27,11 @@ type OpCode =
     | hello = 10
     | heartbeatACK = 11
 
+//TODO: Place these in their own json module
+let jsonConverter = Fable.JsonConverter() :> JsonConverter
+let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
+let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+
 type ISerializable =
     abstract member Serialize : unit -> string
 
@@ -36,11 +40,8 @@ type HeartbeatPacket (seq : int) =
 
     interface ISerializable with
         member this.Serialize() =
-            let j = 
-                new JObject(
-                    new JProperty("op", 1), 
-                    new JProperty("d", JObject.FromObject(this)))
-            j.ToString()
+            let payload = {op = 1; d = JObject.FromObject(this); s = None; t = None}
+            toJson payload
 
 type IdentifyPacket (token : string, shard : int, numshards : int) =
     //TODO: Better way to construct the properties.
@@ -57,15 +58,8 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 
     interface ISerializable with
         member this.Serialize() =
-            let j = 
-                new JObject(
-                    new JProperty("op", 2), 
-                    new JProperty("d", JObject.FromObject(this)))
-            j.ToString()
-
-let jsonConverter = Fable.JsonConverter() :> JsonConverter
-let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
-let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+            let payload = {op = 2; d = JObject.FromObject(this); s = None; t = None}
+            toJson payload
 
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
@@ -188,15 +182,16 @@ type Gateway () =
             printf "%s" "finished receive\n"
         }
     
+    //TODO: Move the send and recieve functions to their own Websocket module.
     let Receive () =
         async {
             let ms = new MemoryStream()
             do! receiveMessage CancellationToken.None 16384 ms
+            ms.ToArray() |> Text.Encoding.UTF8.GetString |> printf "%s\n"
             return
                 ms.ToArray()
                 |> Text.Encoding.UTF8.GetString
                 |> fun s -> s.TrimEnd(char 0)
-                |> ofJson<Payload>
         }
 
     let Run (uri : string) (token : string) = 
@@ -210,7 +205,7 @@ type Gateway () =
 
             while socket.State = WebSocketState.Open do
                 let! payload =  Receive()
-                parseMessage payload
+                ofJson<Payload> payload |> parseMessage
 
                 printf "%s" "End of run loop \n"
             
