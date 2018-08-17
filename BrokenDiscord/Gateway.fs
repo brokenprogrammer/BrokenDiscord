@@ -12,6 +12,7 @@ open Newtonsoft.Json.Linq
 open BrokenDiscord.Events
 open BrokenDiscord.Types
 open Newtonsoft.Json
+open System.IO
 
 type OpCode = 
     | dispatch = 0
@@ -159,21 +160,43 @@ type Gateway () =
         | OpCode.heartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
-    let Receive () = 
+    let receiveMessage cancellationToken bufferSize (writeableStream : IO.Stream) = 
         async {
             printf "%s" "Starting to recieve"
-            let buffer = Array.zeroCreate<byte> 20000 //TODO: Do we have to specify a size?
-            let! result = socket.ReceiveAsync(ArraySegment<byte>(buffer), CancellationToken.None) |> Async.AwaitTask
             
-            let content = 
-                match result.Count with
-                | 0 -> None
-                | _ -> buffer.[0..result.Count] |> Encoding.UTF8.GetString |> ofJson<Payload> |> Some
+            let buffer = new ArraySegment<Byte>( Array.create (bufferSize) Byte.MinValue)
             
-            if content.IsSome then
-                parseMessage(content.Value)
+            let rec recieveTilEnd' () =
+                async {
+                    let! result = socket.ReceiveAsync(buffer, cancellationToken) |> Async.AwaitTask
+                    
+                    match result with
+                    | result when result.MessageType = WebSocketMessageType.Close || socket.State = WebSocketState.CloseReceived ->
+                        do! socket.CloseOutputAsync (WebSocketCloseStatus.NormalClosure, "Close Received", cancellationToken) |> Async.AwaitTask
+                    | result ->
+                        if result.MessageType <> WebSocketMessageType.Text then return ()
+                        
+                        do! writeableStream.AsyncWrite(buffer.Array,buffer.Offset,result.Count)
+                        
+                        if result.EndOfMessage then
+                            return ()
+                        else return! recieveTilEnd' ()
+
+                }
+            do! recieveTilEnd' ()
             
             printf "%s" "finished receive\n"
+        }
+    
+    let Receive () =
+        async {
+            let ms = new MemoryStream()
+            do! receiveMessage CancellationToken.None 16384 ms
+            return
+                ms.ToArray()
+                |> Text.Encoding.UTF8.GetString
+                |> fun s -> s.TrimEnd(char 0)
+                |> ofJson<Payload>
         }
 
     let Run (uri : string) (token : string) = 
@@ -186,8 +209,9 @@ type Gateway () =
             do! Send(identification) |> Async.Ignore
 
             while socket.State = WebSocketState.Open do
-                //TODO: Recieve should return something instead of the logic that is currently present in the recieve function
-                do! Receive() |> Async.Ignore
+                let! payload =  Receive()
+                parseMessage payload
+
                 printf "%s" "End of run loop \n"
             
             printf "%s" (socket.State.ToString())
