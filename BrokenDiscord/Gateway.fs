@@ -1,13 +1,16 @@
 module BrokenDiscord.Gateway
 
-open Events
-
 open System
+open System.IO
+open System.Net.WebSockets
 open System.Text
 open System.Threading
 open System.Threading.Tasks
-open System.Net.WebSockets
+
+open Newtonsoft.Json
 open Newtonsoft.Json.Linq
+
+open BrokenDiscord.Events
 open BrokenDiscord.Types
 
 type OpCode = 
@@ -24,6 +27,11 @@ type OpCode =
     | hello = 10
     | heartbeatACK = 11
 
+//TODO: Place these in their own json module
+let jsonConverter = Fable.JsonConverter() :> JsonConverter
+let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
+let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+
 type ISerializable =
     abstract member Serialize : unit -> string
 
@@ -32,11 +40,8 @@ type HeartbeatPacket (seq : int) =
 
     interface ISerializable with
         member this.Serialize() =
-            let j = 
-                new JObject(
-                    new JProperty("op", 1), 
-                    new JProperty("d", JObject.FromObject(this)))
-            j.ToString()
+            let payload = {op = 1; d = JObject.FromObject(this); s = None; t = None}
+            toJson payload
 
 type IdentifyPacket (token : string, shard : int, numshards : int) =
     //TODO: Better way to construct the properties.
@@ -53,11 +58,8 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 
     interface ISerializable with
         member this.Serialize() =
-            let j = 
-                new JObject(
-                    new JProperty("op", 2), 
-                    new JProperty("d", JObject.FromObject(this)))
-            j.ToString()
+            let payload = {op = 2; d = JObject.FromObject(this); s = None; t = None}
+            toJson payload
 
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
@@ -82,10 +84,10 @@ type Gateway () =
     
     let readyEvent = new Event<ReadyEventArgs>()
 
-    let handleDispatch (rawJson :JObject) =
-        let s = rawJson.["s"].Value<int>() //TODO: Update the heartbeat sequence to this..
+    let handleDispatch (payload : Payload) =
+        let s = payload.s //TODO: Update the heartbeat sequence to this..
 
-        let t = rawJson.["t"].Value<string>()
+        let t = payload.t.Value
 
         printf "%s %s" "\nHandling DISPATCH " t
         printf "%s" "\n"
@@ -94,7 +96,7 @@ type Gateway () =
         //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
         //TODO: Properly handle send the correct payload.
         match t with
-        | "READY" -> readyEvent.Trigger(ReadyEventArgs({op=11; d="TEST"; s=12; t="ads"}))
+        | "READY" -> readyEvent.Trigger(ReadyEventArgs({op=11; d=new JObject(new JProperty("op", 2)); s = Some 12; t = Some "ads"}))
         | "RESUMED" -> ()
         | "CHANNEL_CREATE" -> ()
         | "CHANNEL_UPDATE" -> ()
@@ -130,12 +132,12 @@ type Gateway () =
         | _ -> () // TODO: Log Unhandled event
 
     //TODO: better naming for this function
-    let parseMessage (rawJson : JObject) =
-        let op = enum<OpCode>(rawJson.["op"].Value<int>())
+    let parseMessage (payload : Payload) =
+        let op = enum<OpCode>(payload.op)
         
         match op with
         | OpCode.dispatch -> 
-            handleDispatch rawJson
+            handleDispatch payload
         | OpCode.heartbeat -> 1 |> ignore
         | OpCode.identify -> 2 |> ignore
         | OpCode.statusUpdate -> 3 |> ignore
@@ -147,30 +149,49 @@ type Gateway () =
         | OpCode.invalidSession -> 9 |> ignore
         | OpCode.hello -> 
             printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
-            let heartbeatInterval = rawJson.["d"].["heartbeat_interval"].Value<int>()
+            let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
             heartbeat(heartbeatInterval) |> Async.Start
         | OpCode.heartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
-    let Receive () = 
+    let receiveMessage cancellationToken bufferSize (writeableStream : IO.Stream) = 
         async {
             printf "%s" "Starting to recieve"
-            let buffer : byte[] = Array.zeroCreate 50000 //TODO: Do we have to specify a size?
-            let! result = socket.ReceiveAsync(ArraySegment<byte>(buffer), CancellationToken.None) |> Async.AwaitTask
             
-            let content = 
-                match result.Count with
-                | 0 -> ""
-                | _ -> buffer.[0..result.Count] |> Encoding.UTF8.GetString
+            let buffer = new ArraySegment<Byte>( Array.create (bufferSize) Byte.MinValue)
+            
+            let rec recieveTilEnd' () =
+                async {
+                    let! result = socket.ReceiveAsync(buffer, cancellationToken) |> Async.AwaitTask
+                    
+                    match result with
+                    | result when result.MessageType = WebSocketMessageType.Close || socket.State = WebSocketState.CloseReceived ->
+                        do! socket.CloseOutputAsync (WebSocketCloseStatus.NormalClosure, "Close Received", cancellationToken) |> Async.AwaitTask
+                    | result ->
+                        if result.MessageType <> WebSocketMessageType.Text then return ()
+                        
+                        do! writeableStream.AsyncWrite(buffer.Array,buffer.Offset,result.Count)
+                        
+                        if result.EndOfMessage then
+                            return ()
+                        else return! recieveTilEnd' ()
 
-
-            printf "%s" content
-
-            //TODO: Parse and read the ready event.
-            if content <> "" || content = null then
-                parseMessage(JObject.Parse(content))
+                }
+            do! recieveTilEnd' ()
+            
             printf "%s" "finished receive\n"
-            
+        }
+    
+    //TODO: Move the send and recieve functions to their own Websocket module.
+    let Receive () =
+        async {
+            let ms = new MemoryStream()
+            do! receiveMessage CancellationToken.None 16384 ms
+            ms.ToArray() |> Text.Encoding.UTF8.GetString |> printf "%s\n"
+            return
+                ms.ToArray()
+                |> Text.Encoding.UTF8.GetString
+                |> fun s -> s.TrimEnd(char 0)
         }
 
     let Run (uri : string) (token : string) = 
@@ -183,8 +204,9 @@ type Gateway () =
             do! Send(identification) |> Async.Ignore
 
             while socket.State = WebSocketState.Open do
-                //TODO: Recieve should return something instead of the logic that is currently present in the recieve function
-                do! Receive() |> Async.Ignore
+                let! payload =  Receive()
+                ofJson<Payload> payload |> parseMessage
+
                 printf "%s" "End of run loop \n"
             
             printf "%s" (socket.State.ToString())

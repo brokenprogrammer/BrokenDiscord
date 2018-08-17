@@ -2,15 +2,14 @@
 
 open System
 
-//TODO: Go through all types and fix TODOs and conventions.
+open Newtonsoft.Json.Linq
 
 //TODO: This payload object might be isolated to the Gateway module.
-//TODO: Make use of this object, Every object sent and receieved should be wrapped in the payload type
 // OP = opcode 
 // d = event data
 // s = sequence number
 // t = event name
-type Payload = {op:int; d:string; s:int; t:string}
+type Payload = {op : int; d : JObject; s : int option; t : string option}
 
 type Snowflake = uint64
 
