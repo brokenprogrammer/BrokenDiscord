@@ -1,18 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\NUnit3TestAdapter.3.10.0\build\net35\NUnit3TestAdapter.props" Condition="Exists('..\packages\NUnit3TestAdapter.3.10.0\build\net35\NUnit3TestAdapter.props')" />
+  <Import Project="..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.props" Condition="Exists('..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.props')" />
+  <Import Project="..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.props" Condition="Exists('..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.props')" />
+  <Import Project="..\packages\NUnit.3.10.1\build\NUnit.props" Condition="Exists('..\packages\NUnit.3.10.1\build\NUnit.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>8a0318e6-f22c-4fb2-b0b5-3c2b31656e28</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <RootNamespace>BrokenDiscord.Test</RootNamespace>
     <AssemblyName>BrokenDiscord.Test</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.4.1.0</TargetFSharpCoreVersion>
     <Name>BrokenDiscord.Test</Name>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -55,16 +61,21 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Program.fs" />
+    <Compile Include="Test.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core">
-      <Name>FSharp.Core</Name>
-      <AssemblyName>FSharp.Core.dll</AssemblyName>
-      <HintPath>$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\$(TargetFSharpCoreVersion)\FSharp.Core.dll</HintPath>
+      <HintPath>..\packages\FSharp.Core.4.5.2\lib\net45\FSharp.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.CodeCoverage.Shim">
+      <HintPath>..\packages\Microsoft.CodeCoverage.15.8.0\lib\net45\Microsoft.VisualStudio.CodeCoverage.Shim.dll</HintPath>
+    </Reference>
+    <Reference Include="mscorlib" />
+    <Reference Include="nunit.framework">
+      <HintPath>..\packages\NUnit.3.10.1\lib\net45\nunit.framework.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -73,14 +84,25 @@
       <HintPath>..\packages\System.ValueTuple.4.3.1\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
       <Private>True</Private>
     </Reference>
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\BrokenDiscord\BrokenDiscord.fsproj">
       <Name>BrokenDiscord</Name>
       <Project>{00231fcd-cd8c-4315-aabe-e16eb47a78b5}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\NUnit.3.10.1\build\NUnit.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\NUnit.3.10.1\build\NUnit.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.targets'))" />
+    <Error Condition="!Exists('..\packages\NUnit3TestAdapter.3.10.0\build\net35\NUnit3TestAdapter.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\NUnit3TestAdapter.3.10.0\build\net35\NUnit3TestAdapter.props'))" />
+  </Target>
+  <Import Project="..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.targets" Condition="Exists('..\packages\Microsoft.CodeCoverage.15.8.0\build\netstandard1.0\Microsoft.CodeCoverage.targets')" />
+  <Import Project="..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.targets" Condition="Exists('..\packages\Microsoft.NET.Test.Sdk.15.8.0\build\net45\Microsoft.Net.Test.Sdk.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
