@@ -55,6 +55,7 @@
     <Compile Include="Types.fs" />
     <Compile Include="BrokenDiscord.fs" />
     <Compile Include="Events.fs" />
+    <Compile Include="WebSocket.fs" />
     <Compile Include="Gateway.fs" />
     <Compile Include="Client.fs" />
   </ItemGroup>

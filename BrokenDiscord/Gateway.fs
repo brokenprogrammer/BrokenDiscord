@@ -1,9 +1,7 @@
 module BrokenDiscord.Gateway
 
 open System
-open System.IO
 open System.Net.WebSockets
-open System.Text
 open System.Threading
 open System.Threading.Tasks
 
@@ -12,6 +10,8 @@ open Newtonsoft.Json.Linq
 
 open BrokenDiscord.Events
 open BrokenDiscord.Types
+open BrokenDiscord.WebSockets
+open BrokenDiscord.WebSockets.WebSocket
 
 type OpCode = 
     | dispatch = 0
@@ -66,11 +66,8 @@ type Gateway () =
 
     let Send (packet : ISerializable) = 
         async {
-            let buffer = Encoding.UTF8.GetBytes(packet.Serialize())
-            
             printf "%s" ("Sending packet" + packet.Serialize())
-
-            do! socket.SendAsync(ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None) |> Async.AwaitTask
+            do! WebSocket.sendMessageUTF8 (packet.Serialize()) socket
             printf "%s" "Sent packet...\n"
         }
 
@@ -85,7 +82,7 @@ type Gateway () =
     let readyEvent = new Event<ReadyEventArgs>()
 
     let handleDispatch (payload : Payload) =
-        let s = payload.s //TODO: Update the heartbeat sequence to this..
+        let s = payload.s
 
         let t = payload.t.Value
 
@@ -154,46 +151,6 @@ type Gateway () =
         | OpCode.heartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
-    let receiveMessage cancellationToken bufferSize (writeableStream : IO.Stream) = 
-        async {
-            printf "%s" "Starting to recieve"
-            
-            let buffer = new ArraySegment<Byte>( Array.create (bufferSize) Byte.MinValue)
-            
-            let rec recieveTilEnd' () =
-                async {
-                    let! result = socket.ReceiveAsync(buffer, cancellationToken) |> Async.AwaitTask
-                    
-                    match result with
-                    | result when result.MessageType = WebSocketMessageType.Close || socket.State = WebSocketState.CloseReceived ->
-                        do! socket.CloseOutputAsync (WebSocketCloseStatus.NormalClosure, "Close Received", cancellationToken) |> Async.AwaitTask
-                    | result ->
-                        if result.MessageType <> WebSocketMessageType.Text then return ()
-                        
-                        do! writeableStream.AsyncWrite(buffer.Array,buffer.Offset,result.Count)
-                        
-                        if result.EndOfMessage then
-                            return ()
-                        else return! recieveTilEnd' ()
-
-                }
-            do! recieveTilEnd' ()
-            
-            printf "%s" "finished receive\n"
-        }
-    
-    //TODO: Move the send and recieve functions to their own Websocket module.
-    let Receive () =
-        async {
-            let ms = new MemoryStream()
-            do! receiveMessage CancellationToken.None 16384 ms
-            ms.ToArray() |> Text.Encoding.UTF8.GetString |> printf "%s\n"
-            return
-                ms.ToArray()
-                |> Text.Encoding.UTF8.GetString
-                |> fun s -> s.TrimEnd(char 0)
-        }
-
     let Run (uri : string) (token : string) = 
         async {
             printf "%s" "Connecting...\n"
@@ -204,7 +161,7 @@ type Gateway () =
             do! Send(identification) |> Async.Ignore
 
             while socket.State = WebSocketState.Open do
-                let! payload =  Receive()
+                let! payload =  WebSocket.receieveMessageUTF8 socket
                 ofJson<Payload> payload |> parseMessage
 
                 printf "%s" "End of run loop \n"
