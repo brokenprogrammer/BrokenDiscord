@@ -5,6 +5,7 @@ open System.Net.WebSockets
 module WebSocket =
     open System
     open System.Threading
+    open System.IO
 
     /// Size of the buffer when sending messages over the socket.
     type BufferSize = int
@@ -25,12 +26,26 @@ module WebSocket =
             do! socket.SendAsync(buffer, messageType, endOfMessage, CancellationToken.None) |> Async.AwaitTask
         }
 
-    let close = 0 // TODO: Implement
+    let close status message (socket : ClientWebSocket) =
+        async {
+            do! socket.CloseAsync(status, message, CancellationToken.None) |> Async.AwaitTask
+        }
     
     let sendMessage bufferSize messageType (stream : IO.Stream) (socket : ClientWebSocket) = 
         async {
-            //TODO: Implement
-            return ()
+            let buffer = Array.create (bufferSize) Byte.MinValue
+
+            let rec sendMessage' () =
+                async {
+                    let! read = stream.ReadAsync(buffer, 0, buffer.Length) |> Async.AwaitTask
+                    
+                    if read > 0 then
+                        do! socket |> send (ArraySegment(buffer |> Array.take read)) messageType false
+                        return! sendMessage'()
+                    else
+                        do! socket |> send (ArraySegment(Array.empty)) messageType true
+                }
+            do! sendMessage'()
         }
 
     let sendMessageUTF8 (text : string) (socket : ClientWebSocket) = 
@@ -39,9 +54,9 @@ module WebSocket =
             do! sendMessage defaultBufferSize WebSocketMessageType.Text stream socket
         }
 
-    let receieveMessage cancellationToken bufferSize (writeableStream : IO.Stream) (socket : ClientWebSocket) =
+    let receieveMessage cancellationToken bufferSize messageType (writeableStream : IO.Stream) (socket : ClientWebSocket) =
         async {
-            let buffer = new ArraySegment<Byte>( Array.create (bufferSize) Byte.MinValue)
+            let buffer = new ArraySegment<Byte>(Array.create (bufferSize) Byte.MinValue)
             
             let rec recieveTilEnd' () =
                 async {
@@ -51,7 +66,7 @@ module WebSocket =
                     | result when result.MessageType = WebSocketMessageType.Close || socket.State = WebSocketState.CloseReceived ->
                         do! socket.CloseOutputAsync (WebSocketCloseStatus.NormalClosure, "Close Received", cancellationToken) |> Async.AwaitTask
                     | result ->
-                        if result.MessageType <> WebSocketMessageType.Text then return ()
+                        if result.MessageType <> messageType then return ()
                         
                         do! writeableStream.AsyncWrite(buffer.Array,buffer.Offset,result.Count)
                         
@@ -63,4 +78,12 @@ module WebSocket =
             do! recieveTilEnd' ()
         }
 
-    let receieveMessageUTF8 = //TODO: Implement
+    let receieveMessageUTF8 (socket : ClientWebSocket) = 
+        async {
+            let stream = new IO.MemoryStream()
+            do! receieveMessage CancellationToken.None defaultBufferSize WebSocketMessageType.Text stream socket
+            return
+                stream.ToArray()
+                |> Text.Encoding.UTF8.GetString
+                |> fun s -> s.TrimEnd(char 0)
+        }
