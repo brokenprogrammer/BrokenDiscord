@@ -1,4 +1,4 @@
-﻿namespace BrokenDiscord.WebSocket
+﻿namespace BrokenDiscord.WebSockets
 
 open System.Net.WebSockets
 
