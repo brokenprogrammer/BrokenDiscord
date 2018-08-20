@@ -208,6 +208,99 @@ type Gateway () =
     [<CLIEvent>]
     member this.ReadyEvent = readyEvent.Publish
 
+    [<CLIEvent>]
+    member this.ResumedEvent = resumedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.ChannelCreatedEvent = channelCreatedEvent.Publish       
+    
+    [<CLIEvent>]
+    member this.ChannelUpdatedEvent = channelUpdatedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.ChannelDeletedEvent = channelDeletedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.ChannelPinsUpdatedEvent = channelPinsUpdatedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildCreatedEvent = guildCreatedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildUpdatedEvent = guildUpdatedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildDeletedEvent = guildDeletedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildBanAddEvent = guildBanAddEvent.Publish    
+    
+    [<CLIEvent>]
+    member this.GuildBanRemoveEvent = guildBanRemoveEvent.Publish     
+    
+    [<CLIEvent>]
+    member this.GuildEmojisUpdatedEvent = guildEmojisUpdatedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildIntegrationsUpdatedEvent = guildIntegrationsUpdatedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildMemberAddEvent = guildMemberAddEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildMemberUpdateEvent = guildMemberUpdateEvent.Publish     
+    
+    [<CLIEvent>]
+    member this.GuildMemberRemoveEvent = guildMemberRemoveEvent.Publish
+    
+    [<CLIEvent>]
+    member this.GuildMembersChunkEvent = guildMembersChunkEvent.Publish   
+    
+    [<CLIEvent>]
+    member this.GuildRoleCreateEvent = guildRoleCreateEvent.Publish 
+    
+    [<CLIEvent>]
+    member this.GuildRoleUpdateEvent = guildRoleUpdateEvent.Publish 
+    
+    [<CLIEvent>]
+    member this.GuildRoleDeleteEvent = guildRoleDeleteEvent.Publish     
+    
+    [<CLIEvent>]
+    member this.MessageCreateEvent = messageCreateEvent.Publish   
+    
+    [<CLIEvent>]
+    member this.MessageUpdateEvent = messageUpdateEvent.Publish   
+    
+    [<CLIEvent>]
+    member this.MessageDeleteEvent = messageDeleteEvent.Publish
+    
+    [<CLIEvent>]
+    member this.MessageDeleteBulkEvent = messageDeleteBulkEvent.Publish
+    
+    [<CLIEvent>]
+    member this.MessageReactionAddEvent = messageReactionAddEvent.Publish
+    
+    [<CLIEvent>]
+    member this.MessageReactionRemoveEvent = messageReactionRemoveEvent.Publish
+    
+    [<CLIEvent>]
+    member this.MessageReactionClearedEvent = messageReactionClearedEvent.Publish
+    
+    [<CLIEvent>]
+    member this.PresenceUpdateEvent = presenceUpdateEvent.Publish        
+    
+    [<CLIEvent>]
+    member this.TypingStartEvent = typingStartEvent.Publish       
+    
+    [<CLIEvent>]
+    member this.UserUpdateEvent = userUpdateEvent.Publish
+    
+    [<CLIEvent>]
+    member this.VoiceStateUpdateEvent = voiceStateUpdateEvent.Publish      
+    
+    [<CLIEvent>]
+    member this.VoiceServerUpdateEvent = voiceServerUpdateEvent.Publish
+
     interface IDisposable with
         member this.Dispose() = 
             socket.Dispose()
