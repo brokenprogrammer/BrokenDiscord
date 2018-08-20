@@ -1,6 +1,7 @@
 ﻿module BrokenDiscord.Events
 
 open Types
+open System
 
 type ReadyEventArgs(readyEvent : Payload) = 
     inherit System.EventArgs()
@@ -23,7 +24,7 @@ type ChannelDeleteArgs(channel : Channel) =
     member this.Channel = channel
 
 //TODO: Timestamp format ISO8601
-type ChannelPinsUpdateArgs(channelId : Snowflake, timestamp : int) =
+type ChannelPinsUpdateArgs(channelId : Snowflake, timestamp : DateTime) =
     inherit System.EventArgs()
 
     member this.ChannelId = channelId

@@ -112,7 +112,6 @@ type Gateway () =
             printf "%s" "Sent Heartbeat packet\n"
             do! heartbeat interval
         }
-    
 
     let handleDispatch (payload : Payload) =
         let s = payload.s
@@ -121,6 +120,9 @@ type Gateway () =
 
         printf "%s %s" "\nHandling DISPATCH " t
         printf "%s" "\n"
+
+        let j = payload.d
+        printf "CONTENT: %s" (j.ToString())
         
         //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
         //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
@@ -128,13 +130,21 @@ type Gateway () =
         match t with
         | "READY" -> readyEvent.Trigger(ReadyEventArgs(payload))
         | "RESUMED" -> readyEvent.Trigger(ReadyEventArgs(payload))
-        | "CHANNEL_CREATE" -> ()
-        | "CHANNEL_UPDATE" -> ()
-        | "CHANNEL_DELETE" -> ()
-        | "CHANNEL_PINS_UPDATE" -> ()
-        | "GUILD_CREATE" -> ()
-        | "GUILD_UPDATE" -> ()
-        | "GUILD_DELETE" -> ()
+        | "CHANNEL_CREATE" -> channelCreatedEvent.Trigger(ChannelCreateArgs(ofJson<Channel> (payload.d.ToString())))
+        | "CHANNEL_UPDATE" -> channelUpdatedEvent.Trigger(ChannelUpdateArgs(ofJson<Channel> (payload.d.ToString())))
+        | "CHANNEL_DELETE" -> channelDeletedEvent.Trigger(ChannelDeleteArgs(ofJson<Channel> (payload.d.ToString())))
+        | "CHANNEL_PINS_UPDATE" ->
+            //TODO: Check for last_pin_timestamp and guildId being optional
+            let channelId = payload.d.["channel_id"].Value<Snowflake>()
+            let guildId = payload.d.["guild_id"].Value<Snowflake>()
+            let timestamp = DateTime.Parse(payload.d.["last_pin_timestamp"].Value<string>())
+            channelPinsUpdatedEvent.Trigger(ChannelPinsUpdateArgs(channelId, timestamp))
+        | "GUILD_CREATE" -> guildCreatedEvent.Trigger(GuildCreateArgs(ofJson<Guild> (payload.d.ToString())))
+        | "GUILD_UPDATE" -> guildUpdatedEvent.Trigger(GuildUpdateArgs(ofJson<Guild> (payload.d.ToString())))
+        | "GUILD_DELETE" -> 
+            let guildId = payload.d.["id"].Value<Snowflake>()
+            let unavailable = payload.d.["unavailable"].Value<bool>()
+            guildDeletedEvent.Trigger(GuildDeleteArgs(guildId, unavailable))
         | "GUILD_BAN_ADD" -> ()
         | "GUILD_BAN_REMOVE" -> ()
         | "GUILD_EMOJIS_UPDATE" -> ()
