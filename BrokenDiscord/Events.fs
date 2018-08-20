@@ -22,8 +22,7 @@ type ChannelDeleteArgs(channel : Channel) =
     inherit System.EventArgs()
 
     member this.Channel = channel
-
-//TODO: Timestamp format ISO8601
+    
 type ChannelPinsUpdateArgs(channelId : Snowflake, timestamp : DateTime) =
     inherit System.EventArgs()
 
