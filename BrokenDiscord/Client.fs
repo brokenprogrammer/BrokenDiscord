@@ -15,6 +15,12 @@ type Client () =
     
     let disposables = ResizeArray<_>()
     
+    let mutable SessionId = 0
+
+    member val GatewayVersion = 0 with get, set
+    member val PrivateChannels = [] with get, set
+    member val Guilds = [] with get,set
+
     member __.OnReady
         with set (handler) = 
             disposables.Add (gw.ReadyEvent.Subscribe (obs handler))

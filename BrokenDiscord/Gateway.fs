@@ -14,18 +14,18 @@ open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
 
 type OpCode = 
-    | dispatch = 0
-    | heartbeat = 1
-    | identify = 2
-    | statusUpdate = 3
-    | voiceStateUpdate = 4
-    | voiceServerPing = 5
-    | resume = 6
-    | reconnect = 7
-    | requestGuildMembers = 8
-    | invalidSession = 9
-    | hello = 10
-    | heartbeatACK = 11
+    | Dispatch = 0
+    | Heartbeat = 1
+    | Identify = 2
+    | StatusUpdate = 3
+    | VoiceStateUpdate = 4
+    | VoiceServerPing = 5
+    | Resume = 6
+    | Reconnect = 7
+    | RequestGuildMembers = 8
+    | InvalidSession = 9
+    | Hello = 10
+    | HeartbeatACK = 11
 
 //TODO: Place these in their own json module
 let jsonConverter = Fable.JsonConverter() :> JsonConverter
@@ -64,6 +64,40 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
 
+    let readyEvent                      = new Event<ReadyEventArgs>()
+    let resumedEvent                    = new Event<ReadyEventArgs>()
+    let channelCreatedEvent             = new Event<ChannelCreateArgs>()
+    let channelUpdatedEvent             = new Event<ChannelUpdateArgs>()
+    let channelDeletedEvent             = new Event<ChannelDeleteArgs>()
+    let channelPinsUpdatedEvent         = new Event<ChannelPinsUpdateArgs>()
+    let guildCreatedEvent               = new Event<GuildCreateArgs>()
+    let guildUpdatedEvent               = new Event<GuildUpdateArgs>()
+    let guildDeletedEvent               = new Event<GuildDeleteArgs>()
+    let guildBanAddEvent                = new Event<GuildBanAddArgs>()
+    let guildBanRemoveEvent             = new Event<GuildBanRemoveArgs>()
+    let guildEmojisUpdatedEvent         = new Event<GuildEmojisUpdateArgs>()
+    let guildIntegrationsUpdatedEvent   = new Event<GuildIntegrationsUpdateArgs>()
+    let guildMemberAddEvent             = new Event<GuildMemberAddArgs>()
+    let guildMemberUpdateEvent          = new Event<GuildMemberUpdateArgs>()
+    let guildMemberRemoveEvent          = new Event<GuildMemberRemoveArgs>()
+    let guildMembersChunkEvent          = new Event<GuildMembersChunkArgs>()
+    let guildRoleCreateEvent            = new Event<GuildRoleCreateArgs>()
+    let guildRoleUpdateEvent            = new Event<GuildRoleUpdateArgs>()
+    let guildRoleDeleteEvent            = new Event<GuildRoleDeleteArgs>()
+    let messageCreateEvent              = new Event<MessageCreateArgs>()
+    let messageUpdateEvent              = new Event<MessageUpdateArgs>()
+    let messageDeleteEvent              = new Event<MessageDeleteArgs>()
+    let messageDeleteBulkEvent          = new Event<MessageDeleteBulkArgs>()
+    let messageReactionAddEvent         = new Event<MessageReactionAddedArgs>()
+    let messageReactionRemoveEvent      = new Event<MessageReactionRemovedArgs>()
+    let messageReactionClearedEvent     = new Event<MessageReactionRemoveAllArgs>()
+    let presenceUpdateEvent             = new Event<PresenceUpdateArgs>()
+    let typingStartEvent                = new Event<TypingStartArgs>()
+    let userUpdateEvent                 = new Event<UserUpdateArgs>()
+    //let userSettingsUpdateEvent = 
+    let voiceStateUpdateEvent           = new Event<VoiceStateUpdateArgs>()
+    let voiceServerUpdateEvent          = new Event<VoiceServerUpdateArgs>()
+
     let Send (packet : ISerializable) = 
         async {
             printf "%s" ("Sending packet" + packet.Serialize())
@@ -79,7 +113,6 @@ type Gateway () =
             do! heartbeat interval
         }
     
-    let readyEvent = new Event<ReadyEventArgs>()
 
     let handleDispatch (payload : Payload) =
         let s = payload.s
@@ -93,8 +126,8 @@ type Gateway () =
         //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
         //TODO: Properly handle send the correct payload.
         match t with
-        | "READY" -> readyEvent.Trigger(ReadyEventArgs({op=11; d=new JObject(new JProperty("op", 2)); s = Some 12; t = Some "ads"}))
-        | "RESUMED" -> ()
+        | "READY" -> readyEvent.Trigger(ReadyEventArgs(payload))
+        | "RESUMED" -> readyEvent.Trigger(ReadyEventArgs(payload))
         | "CHANNEL_CREATE" -> ()
         | "CHANNEL_UPDATE" -> ()
         | "CHANNEL_DELETE" -> ()
@@ -133,22 +166,22 @@ type Gateway () =
         let op = enum<OpCode>(payload.op)
         
         match op with
-        | OpCode.dispatch -> 
+        | OpCode.Dispatch -> 
             handleDispatch payload
-        | OpCode.heartbeat -> 1 |> ignore
-        | OpCode.identify -> 2 |> ignore
-        | OpCode.statusUpdate -> 3 |> ignore
-        | OpCode.voiceStateUpdate -> 4 |> ignore
-        | OpCode.voiceServerPing -> 5 |> ignore
-        | OpCode.resume -> 6 |> ignore
-        | OpCode.reconnect -> 7 |> ignore
-        | OpCode.requestGuildMembers -> 8 |> ignore
-        | OpCode.invalidSession -> 9 |> ignore
-        | OpCode.hello -> 
+        | OpCode.Heartbeat -> 1 |> ignore
+        | OpCode.Identify -> 2 |> ignore
+        | OpCode.StatusUpdate -> 3 |> ignore
+        | OpCode.VoiceStateUpdate -> 4 |> ignore
+        | OpCode.VoiceServerPing -> 5 |> ignore
+        | OpCode.Resume -> 6 |> ignore
+        | OpCode.Reconnect -> 7 |> ignore
+        | OpCode.RequestGuildMembers -> 8 |> ignore
+        | OpCode.InvalidSession -> 9 |> ignore
+        | OpCode.Hello -> 
             printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
             let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
             heartbeat(heartbeatInterval) |> Async.Start
-        | OpCode.heartbeatACK -> 11 |> ignore
+        | OpCode.HeartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
     let Run (uri : string) (token : string) = 
@@ -169,11 +202,11 @@ type Gateway () =
             printf "%s" (socket.State.ToString())
         }
 
-    [<CLIEvent>]
-    member this.ReadyEvent = readyEvent.Publish
-
     // Test method that calls the Run function with the target websocket uri
     member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL4"
+
+    [<CLIEvent>]
+    member this.ReadyEvent = readyEvent.Publish
 
     interface IDisposable with
         member this.Dispose() = 
