@@ -156,7 +156,7 @@ type MessageReactionRemoveAllArgs(channelId : Snowflake, messageId : Snowflake) 
     member this.ChannelId = channelId
     member this.MessageId = messageId
 
-type PresenceUpdateArgs(user : User, roles : list<Role>, 
+type PresenceUpdateArgs(user : User, roles : list<Snowflake>, 
                         game : Activity, guildId : Snowflake, status : string) =
     inherit System.EventArgs()
 
