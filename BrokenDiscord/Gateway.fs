@@ -31,6 +31,8 @@ type OpCode =
 let jsonConverter = Fable.JsonConverter() :> JsonConverter
 let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
 let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+let ofJsonPart<'T> value (source : JObject) = ofJson<'T> (source.[value].ToString())
+let ofJsonValue<'T> value (source : JObject) = (source.[value].Value<'T>())
 
 type ISerializable =
     abstract member Serialize : unit -> string
@@ -121,12 +123,10 @@ type Gateway () =
         printf "%s %s" "\nHandling DISPATCH " t
         printf "%s" "\n"
 
-        let j = payload.d
-        printf "CONTENT: %s" (j.ToString())
+        let payloadData = payload.d
+        printf "CONTENT: %s" (payloadData.ToString())
         
         //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
-        //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
-        //TODO: Properly handle send the correct payload.
         match t with
         | "READY" -> readyEvent.Trigger(ReadyEventArgs(payload))
         | "RESUMED" -> readyEvent.Trigger(ReadyEventArgs(payload))
@@ -135,97 +135,97 @@ type Gateway () =
         | "CHANNEL_DELETE" -> channelDeletedEvent.Trigger(ChannelDeleteArgs(ofJson<Channel> (payload.d.ToString())))
         | "CHANNEL_PINS_UPDATE" ->
             //TODO: Check for last_pin_timestamp and guildId being optional
-            let channelId = payload.d.["channel_id"].Value<Snowflake>()
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let timestamp = DateTime.Parse(payload.d.["last_pin_timestamp"].Value<string>())
+            let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
+            let guildId   = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let timestamp = ofJsonPart<string> "last_pin_timestamp" payloadData |> DateTime.Parse
             channelPinsUpdatedEvent.Trigger(ChannelPinsUpdateArgs(channelId, timestamp))
         | "GUILD_CREATE" -> guildCreatedEvent.Trigger(GuildCreateArgs(ofJson<Guild> (payload.d.ToString())))
         | "GUILD_UPDATE" -> guildUpdatedEvent.Trigger(GuildUpdateArgs(ofJson<Guild> (payload.d.ToString())))
         | "GUILD_DELETE" -> 
-            let guildId = payload.d.["id"].Value<Snowflake>()
-            let unavailable = payload.d.["unavailable"].Value<bool>()
+            let guildId     = ofJsonValue<Snowflake> "id" payloadData
+            let unavailable = ofJsonPart<bool> "unavailable" payloadData
             guildDeletedEvent.Trigger(GuildDeleteArgs(guildId, unavailable))
-        | "GUILD_BAN_ADD" -> guildBanAddEvent.Trigger(GuildBanAddArgs(ofJson<User> (payload.d.ToString())))
+        | "GUILD_BAN_ADD"    -> guildBanAddEvent.Trigger(GuildBanAddArgs(ofJson<User> (payload.d.ToString())))
         | "GUILD_BAN_REMOVE" -> guildBanRemoveEvent.Trigger(GuildBanRemoveArgs(ofJson<User> (payload.d.ToString())))
         | "GUILD_EMOJIS_UPDATE" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let emojis = ofJson<list<Emoji>> (payload.d.["emojis"].ToString())
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let emojis  = ofJsonPart<list<Emoji>> "emojis" payloadData
             guildEmojisUpdatedEvent.Trigger(GuildEmojisUpdateArgs(guildId, emojis))
         | "GUILD_INTEGRATIONS_UPDATE" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
             guildIntegrationsUpdatedEvent.Trigger(GuildIntegrationsUpdateArgs(guildId))
         | "GUILD_MEMBER_ADD" -> guildMemberAddEvent.Trigger(GuildMemberAddArgs(ofJson<GuildMember> (payload.d.ToString())))
         | "GUILD_MEMBER_REMOVE" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let user = ofJson<User> (payload.d.["user"].ToString())
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let user    = ofJsonPart<User> "user" payloadData
             guildMemberRemoveEvent.Trigger(GuildMemberRemoveArgs(guildId, user))
         | "GUILD_MEMBER_UPDATE" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let roles = ofJson<list<Snowflake>> (payload.d.["roles"].ToString())
-            let user = ofJson<User> (payload.d.["user"].ToString())
-            let nick = payload.d.["nick"].Value<string>()
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let roles   = ofJsonPart<list<Snowflake>> "roles" payloadData
+            let user    = ofJsonPart<User> "user" payloadData
+            let nick    = ofJsonPart<string> "nick" payloadData
             guildMemberUpdateEvent.Trigger(GuildMemberUpdateArgs(guildId, roles, user, nick))
         | "GUILD_MEMBERS_CHUNK" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let members = ofJson<list<GuildMember>> (payload.d.["members"].ToString())
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let members = ofJsonPart<list<GuildMember>> "members" payloadData
             guildMembersChunkEvent.Trigger(GuildMembersChunkArgs(guildId, members))
         | "GUILD_ROLE_CREATE" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let role = ofJson<Role> (payload.d.["role"].ToString())
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let role    = ofJsonPart<Role> "role" payloadData
             guildRoleCreateEvent.Trigger(GuildRoleCreateArgs(guildId, role))
         | "GUILD_ROLE_UPDATE" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let role = ofJson<Role> (payload.d.["role"].ToString())
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let role    = ofJsonPart<Role> "role" payloadData
             guildRoleUpdateEvent.Trigger(GuildRoleUpdateArgs(guildId, role))
         | "GUILD_ROLE_DELETE" -> 
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let roleId = payload.d.["role_id"].Value<Snowflake>()
+            let guildId = ofJsonValue<Snowflake> "guild_id"  payloadData
+            let roleId  = ofJsonValue<Snowflake> "role_id" payloadData
             guildRoleDeleteEvent.Trigger(GuildRoleDeleteArgs(guildId, roleId))
         | "MESSAGE_CREATE" -> messageCreateEvent.Trigger(MessageCreateArgs(ofJson<Message> (payload.d.ToString())))
         | "MESSAGE_UPDATE" -> messageUpdateEvent.Trigger(MessageUpdateArgs(ofJson<Message> (payload.d.ToString())))
         | "MESSAGE_DELETE" -> 
-            let id = payload.d.["id"].Value<Snowflake>()
-            let channelId = payload.d.["channel_id"].Value<Snowflake>()
+            let id        = ofJsonValue<Snowflake> "id" payloadData
+            let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
             messageDeleteEvent.Trigger(MessageDeleteArgs(id, channelId))
         | "MESSAGE_DELETE_BULK" -> 
-            let ids = payload.d.["ids"].Value<list<Snowflake>>()
-            let channelId = payload.d.["channel_id"].Value<Snowflake>()
+            let ids       = ofJsonPart<list<Snowflake>> "ids" payloadData
+            let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
             messageDeleteBulkEvent.Trigger(MessageDeleteBulkArgs(ids, channelId))
         | "MESSAGE_REACTION_ADDED" -> 
-            let userId = payload.d.["user_id"].Value<Snowflake>()
-            let channelId = payload.d.["channel_id"].Value<Snowflake>()
-            let messageId = payload.d.["message_id"].Value<Snowflake>()
-            let emoji = ofJson<Emoji> (payload.d.ToString())
+            let userId    = ofJsonValue<Snowflake> "user_id" payloadData     
+            let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
+            let messageId = ofJsonValue<Snowflake> "message_id" payloadData
+            let emoji     = ofJsonPart<Emoji> "emoji" payloadData
             messageReactionAddEvent.Trigger(MessageReactionAddedArgs(userId, channelId, messageId, emoji))
         | "MESSAGE_REACTION_REMOVED" -> 
-            let userId = payload.d.["user_id"].Value<Snowflake>()
-            let channelId = payload.d.["channel_id"].Value<Snowflake>()
-            let messageId = payload.d.["message_id"].Value<Snowflake>()
-            let emoji = ofJson<Emoji> (payload.d.ToString())
+            let userId    = ofJsonValue<Snowflake> "user_id" payloadData   
+            let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
+            let messageId = ofJsonValue<Snowflake> "message_id" payloadData
+            let emoji     = ofJsonPart<Emoji> "emoji" payloadData
             messageReactionRemoveEvent.Trigger(MessageReactionRemovedArgs(userId, channelId, messageId, emoji))
         | "MESSAGE_REACTIONS_CLEARED" ->
-            let channelId = payload.d.["channel_id"].Value<Snowflake>()
-            let messageId = payload.d.["message_id"].Value<Snowflake>()
+            let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
+            let messageId = ofJsonValue<Snowflake> "message_id" payloadData
             messageReactionClearedEvent.Trigger(MessageReactionRemoveAllArgs(channelId, messageId))
         | "PRESENCE_UPDATE" -> 
-            let user = ofJson<User> (payload.d.["user"].ToString())
-            let roles = ofJson<list<Snowflake>> (payload.d.["roles"].ToString())
-            let game = ofJson<Activity> (payload.d.["game"].ToString())
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let status = payload.d.["status"].Value<string>()
+            let user    = ofJsonPart<User> "user" payloadData
+            let roles   = ofJsonPart<list<Snowflake>> "roles" payloadData
+            let game    = ofJsonPart<Activity> "game" payloadData        
+            let guildId = ofJsonValue<Snowflake> "guild_id" payloadData   
+            let status  = ofJsonPart<string> "status" payloadData        
             presenceUpdateEvent.Trigger(PresenceUpdateArgs(user, roles, game, guildId, status))
         | "TYPING_START" -> 
-            let channelId = payload.d.["channel_id"].Value<Snowflake>()
-            let userId = payload.d.["user_id"].Value<Snowflake>()
-            let timestamp = payload.d.["timestamp"].Value<int>()
+            let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
+            let userId    = ofJsonValue<Snowflake> "user_id" payloadData     
+            let timestamp = ofJsonPart<int> "timestamp" payloadData
             typingStartEvent.Trigger(TypingStartArgs(channelId, userId, timestamp))
         | "USER_UPDATE" -> userUpdateEvent.Trigger(UserUpdateArgs(ofJson<User> (payload.d.ToString())))
         | "USER_SETTINGS_UPDATE" -> ()
         | "VOICE_STATE_UPDATE" -> voiceStateUpdateEvent.Trigger(VoiceStateUpdateArgs(ofJson<VoiceState> (payload.d.ToString())))
         | "VOICE_SERVER_UPDATE" -> 
-            let token = payload.d.["token"].Value<string>()
-            let guildId = payload.d.["guild_id"].Value<Snowflake>()
-            let endpoint = payload.d.["endpoint"].Value<string>()
+            let token    = ofJsonPart<string> "token" payloadData
+            let guildId  = ofJsonValue<Snowflake> "guild_id" payloadData
+            let endpoint = ofJsonPart<string> "endpoint" payloadData
             voiceServerUpdateEvent.Trigger(VoiceServerUpdateArgs(token, guildId, endpoint))
         | _ -> () // TODO: Log Unhandled event
 
