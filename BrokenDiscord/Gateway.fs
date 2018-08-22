@@ -212,7 +212,7 @@ type Gateway () =
             let roles   = ofJsonPart<list<Snowflake>> "roles" payloadData
             let game    = ofJsonPart<Activity> "game" payloadData        
             let guildId = ofJsonValue<Snowflake> "guild_id" payloadData   
-            let status  = ofJsonPart<string> "status" payloadData        
+            let status  = ofJsonValue<string> "status" payloadData        
             presenceUpdateEvent.Trigger(PresenceUpdateArgs(user, roles, game, guildId, status))
         | "TYPING_START" -> 
             let channelId = ofJsonValue<Snowflake> "channel_id" payloadData
