@@ -109,7 +109,7 @@ type Role = {
     }
 
 type Emoji = {
-        Id              : Snowflake;
+        Id              : Snowflake option;
         Name            : string;
         Roles           : list<Role> option;
         User            : User option;
