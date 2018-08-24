@@ -14,23 +14,25 @@ open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
 
 type OpCode = 
-    | dispatch = 0
-    | heartbeat = 1
-    | identify = 2
-    | statusUpdate = 3
-    | voiceStateUpdate = 4
-    | voiceServerPing = 5
-    | resume = 6
-    | reconnect = 7
-    | requestGuildMembers = 8
-    | invalidSession = 9
-    | hello = 10
-    | heartbeatACK = 11
+    | Dispatch = 0
+    | Heartbeat = 1
+    | Identify = 2
+    | StatusUpdate = 3
+    | VoiceStateUpdate = 4
+    | VoiceServerPing = 5
+    | Resume = 6
+    | Reconnect = 7
+    | RequestGuildMembers = 8
+    | InvalidSession = 9
+    | Hello = 10
+    | HeartbeatACK = 11
 
 //TODO: Place these in their own json module
 let jsonConverter = Fable.JsonConverter() :> JsonConverter
 let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
 let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+let ofJsonPart<'T> value (source : JObject) = ofJson<'T> (source.[value].ToString())
+let ofJsonValue<'T> value (source : JObject) = (source.[value].Value<'T>())
 
 type ISerializable =
     abstract member Serialize : unit -> string
@@ -64,6 +66,8 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
 
+    let gatewayEvent = new Event<GatewayEvents>()
+    
     let Send (packet : ISerializable) = 
         async {
             printf "%s" ("Sending packet" + packet.Serialize())
@@ -78,77 +82,81 @@ type Gateway () =
             printf "%s" "Sent Heartbeat packet\n"
             do! heartbeat interval
         }
-    
-    let readyEvent = new Event<ReadyEventArgs>()
 
     let handleDispatch (payload : Payload) =
         let s = payload.s
-
         let t = payload.t.Value
 
         printf "%s %s" "\nHandling DISPATCH " t
         printf "%s" "\n"
+        printf "CONTENT: %s\n" (payload.d.ToString())
+
+        let payloadData = payload.d
+        let payloadJson = payloadData.ToString()
         
+        //TODO: Naming
+        let trigger eventType =
+            ofJson payloadJson |> eventType |> gatewayEvent.Trigger
+
         //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
-        //TODO: Make this Gateway type emit some kind of event that the implementer later can listen to.
-        //TODO: Properly handle send the correct payload.
+        //TODO: Verify that single Snowflake cases gets parsed from JSON correctly.
         match t with
-        | "READY" -> readyEvent.Trigger(ReadyEventArgs({op=11; d=new JObject(new JProperty("op", 2)); s = Some 12; t = Some "ads"}))
-        | "RESUMED" -> ()
-        | "CHANNEL_CREATE" -> ()
-        | "CHANNEL_UPDATE" -> ()
-        | "CHANNEL_DELETE" -> ()
-        | "CHANNEL_PINS_UPDATE" -> ()
-        | "GUILD_CREATE" -> ()
-        | "GUILD_UPDATE" -> ()
-        | "GUILD_DELETE" -> ()
-        | "GUILD_BAN_ADD" -> ()
-        | "GUILD_BAN_REMOVE" -> ()
-        | "GUILD_EMOJIS_UPDATE" -> ()
-        | "GUILD_INTEGRATIONS_UPDATE" -> ()
-        | "GUILD_MEMBER_ADD" -> ()
-        | "GUILD_MEMBER_REMOVE" -> ()
-        | "GUILD_MEMBER_UPDATE" -> ()
-        | "GUILD_MEMBERS_CHUNK" -> ()
-        | "GUILD_ROLE_CREATE" -> ()
-        | "GUILD_ROLE_UPDATE" -> ()
-        | "GUILD_ROLE_DELETE" -> ()
-        | "MESSAGE_CREATE" -> ()
-        | "MESSAGE_UPDATE" -> ()
-        | "MESSAGE_DELETE" -> ()
-        | "MESSAGE_DELETE_BULK" -> ()
-        | "MESSAGE_REACTION_ADDED" -> ()
-        | "MESSAGE_REACTION_REMOVED" -> ()
-        | "MESSAGE_REACTIONS_CLEARED" -> ()
-        | "PRESENCE_UPDATE" -> ()
-        | "TYPING_START" -> ()
-        | "USER_UPDATE" -> ()
-        | "USER_SETTINGS_UPDATE" -> ()
-        | "VOICE_STATE_UPDATE" -> ()
-        | "VOICE_SERVER_UPDATE" -> ()
-        | _ -> () // TODO: Log Unhandled event
+        | "READY"                       -> gatewayEvent.Trigger(Ready(payload))
+        | "RESUMED"                     -> gatewayEvent.Trigger(Resume(payload))
+        | "CHANNEL_CREATE"              -> trigger ChannelCreate
+        | "CHANNEL_UPDATE"              -> trigger ChannelUpdate
+        | "CHANNEL_DELETE"              -> trigger ChannelDelete
+        | "CHANNEL_PINS_UPDATE"         -> trigger ChannelPinsUpdate  //TODO: Timestamp not being parsed correctly.
+        | "GUILD_CREATE"                -> trigger GuildCreate
+        | "GUILD_UPDATE"                -> trigger GuildUpdate
+        | "GUILD_DELETE"                -> trigger GuildDelete
+        | "GUILD_BAN_ADD"               -> trigger GuildBanAdd 
+        | "GUILD_BAN_REMOVE"            -> trigger GuildBanRemove
+        | "GUILD_EMOJIS_UPDATE"         -> trigger GuildEmojisUpdate
+        | "GUILD_INTEGRATIONS_UPDATE"   -> trigger GuildIntegrationsUpdate
+        | "GUILD_MEMBER_ADD"            -> trigger GuildMemberAdd
+        | "GUILD_MEMBER_REMOVE"         -> trigger GuildMemberRemove
+        | "GUILD_MEMBER_UPDATE"         -> trigger GuildMemberUpdate
+        | "GUILD_MEMBERS_CHUNK"         -> trigger GuildMembersChunk
+        | "GUILD_ROLE_CREATE"           -> trigger GuildRoleCreate
+        | "GUILD_ROLE_UPDATE"           -> trigger GuildRoleUpdate
+        | "GUILD_ROLE_DELETE"           -> trigger GuildRoleDelete
+        | "MESSAGE_CREATE"              -> trigger MessageCreate
+        | "MESSAGE_UPDATE"              -> trigger MessageUpdate
+        | "MESSAGE_DELETE"              -> trigger MessageDelete
+        | "MESSAGE_DELETE_BULK"         -> trigger MessageDeleteBulk
+        | "MESSAGE_REACTION_ADDED"      -> trigger MessageReactionAdded
+        | "MESSAGE_REACTION_REMOVE"     -> trigger MessageReactionRemoved
+        | "MESSAGE_REACTIONS_CLEARED"   -> trigger MessageReactionCleared
+        | "PRESENCE_UPDATE"             -> trigger PresenceUpdate
+        | "TYPING_START"                -> trigger TypingStart
+        | "USER_UPDATE"                 -> trigger UserUpdate
+        | "USER_SETTINGS_UPDATE"        -> ()
+        | "VOICE_STATE_UPDATE"          -> trigger VoiceStateUpdate
+        | "VOICE_SERVER_UPDATE"         -> trigger VoiceServerUpdate
+        | _                             -> () // TODO: Log Unhandled event
 
     //TODO: better naming for this function
     let parseMessage (payload : Payload) =
         let op = enum<OpCode>(payload.op)
         
         match op with
-        | OpCode.dispatch -> 
+        | OpCode.Dispatch -> 
             handleDispatch payload
-        | OpCode.heartbeat -> 1 |> ignore
-        | OpCode.identify -> 2 |> ignore
-        | OpCode.statusUpdate -> 3 |> ignore
-        | OpCode.voiceStateUpdate -> 4 |> ignore
-        | OpCode.voiceServerPing -> 5 |> ignore
-        | OpCode.resume -> 6 |> ignore
-        | OpCode.reconnect -> 7 |> ignore
-        | OpCode.requestGuildMembers -> 8 |> ignore
-        | OpCode.invalidSession -> 9 |> ignore
-        | OpCode.hello -> 
+        | OpCode.Heartbeat -> 1 |> ignore
+        | OpCode.Identify -> 2 |> ignore
+        | OpCode.StatusUpdate -> 3 |> ignore
+        | OpCode.VoiceStateUpdate -> 4 |> ignore
+        | OpCode.VoiceServerPing -> 5 |> ignore
+        | OpCode.Resume -> 6 |> ignore
+        | OpCode.Reconnect -> 7 |> ignore
+        | OpCode.RequestGuildMembers -> 8 |> ignore
+        | OpCode.InvalidSession -> 9 |> ignore
+        | OpCode.Hello -> 
             printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
             let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
             heartbeat(heartbeatInterval) |> Async.Start
-        | OpCode.heartbeatACK -> 11 |> ignore
+        | OpCode.HeartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
     let Run (uri : string) (token : string) = 
@@ -169,11 +177,11 @@ type Gateway () =
             printf "%s" (socket.State.ToString())
         }
 
-    [<CLIEvent>]
-    member this.ReadyEvent = readyEvent.Publish
-
     // Test method that calls the Run function with the target websocket uri
     member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL4"
+
+    [<CLIEvent>]
+    member this.GatewayEvent = gatewayEvent.Publish
 
     interface IDisposable with
         member this.Dispose() = 

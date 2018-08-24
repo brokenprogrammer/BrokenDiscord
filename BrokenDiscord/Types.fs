@@ -64,7 +64,7 @@ type Embed = {
         Type        : string option;
         Description : string option;
         URL         : string option;
-        Timestamp   : int option; //TODO: Timestamp type
+        Timestamp   : DateTime option;
         Color       : int option;
         Footer      : EmbedFooter option;
         Image       : EmbedImage option;
@@ -109,7 +109,7 @@ type Role = {
     }
 
 type Emoji = {
-        Id              : Snowflake;
+        Id              : Snowflake option;
         Name            : string;
         Roles           : list<Role> option;
         User            : User option;
@@ -148,7 +148,7 @@ type Channel = {
         OwnerID                 : Snowflake option;
         ApplicationID           : Snowflake option;
         ParentID                : Snowflake option;
-        LastPinTimestamp        : int option; //TODO: Timestamp type?
+        LastPinTimestamp        : DateTime option;
     }
 
 type MessageActivityType =
@@ -182,8 +182,8 @@ type Message = {
         ChannelId       : Snowflake;
         Author          : User;
         Content         : string;
-        Timestamp       : int; //TODO: Timestamp type?
-        EditedTimestamp : int option;
+        Timestamp       : DateTime;
+        EditedTimestamp : DateTime option;
         TTS             : bool;
         MentionEveryone : bool;
         Mentions        : list<User>;
@@ -269,7 +269,7 @@ type GuildMember = {
         User        : User;
         Nick        : string option;
         Roles       : list<Snowflake>;
-        JoinedAt    : int; //TODO: ISO8601 timestamp
+        JoinedAt    : DateTime;
         Deaf        : bool;
         Mute        : bool;
     }
@@ -299,7 +299,7 @@ type Guild =  {
         WidgetChannelId                 : Snowflake option;
         SystemChannelId                 : Snowflake option;
         // Bellow are only sent with GUILD_CREATE Event
-        JoinedAt                        : int option; //TODO: Timestamp type
+        JoinedAt                        : DateTime option;
         Large                           : bool option;
         Unavailable                     : bool option;
         MemberCount                     : int option;

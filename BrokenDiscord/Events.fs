@@ -1,191 +1,181 @@
 ﻿module BrokenDiscord.Events
 
 open Types
+open System
+open Newtonsoft.Json
+open Newtonsoft.Json.Serialization
 
-type ReadyEventArgs(readyEvent : Payload) = 
-    inherit System.EventArgs()
+type ChannelPinsUpdateMessage = {
+    [<JsonProperty "channel_id">]
+    channelId : Snowflake;
+    timestamp : DateTime;
+}
 
-    member this.ReadyEvent = readyEvent
+type GuildDeleteMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "unavailable">]
+    Unavailable : bool;
+}
 
-type ChannelCreateArgs(channel : Channel) = 
-    inherit System.EventArgs()
+type GuildEmojisUpdateMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "emojis">]
+    Emojis : list<Emoji>
+}
 
-    member this.Channel = channel
+type GuildMemberRemoveMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "user">]
+    User : User
+}
 
-type ChannelUpdateArgs(channel : Channel) =
-    inherit System.EventArgs()
+type GuildMemberUpdateMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "roles">]
+    Roles : list<Snowflake>;
+    [<JsonProperty "user">]
+    User : User
+    [<JsonProperty "nick">]
+    Nick : string
+}
 
-    member this.Channel = channel
+type GuildMembersChunkMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "members">]
+    Members : list<GuildMember>
+}
 
-type ChannelDeleteArgs(channel : Channel) =
-    inherit System.EventArgs()
+type GuildRoleCreateMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "role">]
+    Role : Role
+}
 
-    member this.Channel = channel
+type GuildRoleUpdateMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "role">]
+    Role : Role
+}
 
-//TODO: Timestamp format ISO8601
-type ChannelPinsUpdateArgs(channelId : Snowflake, timestamp : int) =
-    inherit System.EventArgs()
+type GuildRoleDeleteMessage = {
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "role_id">]
+    RoleId : Snowflake
+}
 
-    member this.ChannelId = channelId
-    member this.TimeStamp = timestamp
+type MessageDeleteMessage = {
+    [<JsonProperty "id">]
+    Id : Snowflake;
+    [<JsonProperty "channel_id">]
+    ChannelId : Snowflake;
+}
 
-type GuildCreateArgs(guild : Guild) =
-    inherit System.EventArgs()
+type MessageDeleteBulkMessage = {
+    [<JsonProperty "ids">]
+    Ids : list<Snowflake>;
+    [<JsonProperty "channel_id">]
+    ChannelId : Snowflake;
+}
 
-    member this.Guild = guild
+type MessageReactionAddedMessage = {
+    [<JsonProperty "user_id">]
+    UserId : Snowflake;
+    [<JsonProperty "channel_id">]
+    ChannelId : Snowflake;
+    [<JsonProperty "message_id">]
+    MessageId : Snowflake;
+    [<JsonProperty "emoji">]
+    Emoji : Emoji;
+}
 
-type GuildUpdateArgs(guild : Guild) =
-    inherit System.EventArgs()
+type MessageReactionRemovedMessage = {
+    [<JsonProperty "user_id">]
+    UserId : Snowflake;
+    [<JsonProperty "channel_id">]
+    ChannelId : Snowflake;
+    [<JsonProperty "message_id">]
+    MessageId : Snowflake;
+    [<JsonProperty "emoji">]
+    Emoji : Emoji;
+}
 
-    member this.Guild = guild
+type MessageReactionClearedMessage = {
+    [<JsonProperty "channel_id">]
+    ChannelId : Snowflake;
+    [<JsonProperty "message_id">]
+    MessageId : Snowflake;
+    
+}
 
-type GuildDeleteArgs(guildId : Snowflake, unavailable : bool) =
-    inherit System.EventArgs()
+type PresenceUpdateMessage = {
+    [<JsonProperty "user">]
+    User : User;
+    [<JsonProperty "roles">]
+    Roles : list<Snowflake>;
+    [<JsonProperty "game">]
+    Game : Activity;
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "status">]
+    Status : string
+}
 
-    member this.GuildId = guildId
-    member this.Unavailable = unavailable
+type TypingStartMessage = {
+    [<JsonProperty "channel_id">]
+    ChannelId : Snowflake;
+    [<JsonProperty "user_id">]
+    UserId : Snowflake;
+    [<JsonProperty "timestamp">]
+    Timestamp : int
+}
 
-type GuildBanAddArgs(user : User) =
-    inherit System.EventArgs()
+type VoiceServerUpdateMessage = {
+    [<JsonProperty "token">]
+    Token : string;
+    [<JsonProperty "guild_id">]
+    GuildId : Snowflake;
+    [<JsonProperty "endpoint">]
+    Endpoint : string;
+}
 
-    member this.User = user
-
-type GuildBanRemoveArgs(user : User) =
-    inherit System.EventArgs()
-
-    member this.User = user
-
-type GuildEmojisUpdateArgs(guildId : Snowflake, emojis : list<Emoji>) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-    member this.Emojis = emojis
-
-type GuildIntegrationsUpdateArgs(guildId : Snowflake) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-
-type GuildMemberAddArgs(guildMember : GuildMember) =
-    inherit System.EventArgs()
-
-    member this.GuildMember = guildMember
-
-type GuildMemberRemoveArgs(guildId : Snowflake, user : User) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-    member this.User = user
-
-type GuildMemberUpdateArgs(guildId : Snowflake, roles : list<Snowflake>, 
-                           user : User, nick : string) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-    member this.Roles = roles
-    member this.User = user
-    member this.Nick = nick
-
-type GuildMembersChunkArgs(guildId : Snowflake, members : list<GuildMember>) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-    member this.Members = members
-
-type GuildRoleCreateArgs(guildId : Snowflake, role : Role) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-    member this.Role = role
-
-type GuildRoleUpdateArgs(guildId : Snowflake, role : Role) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-    member this.Role = role
-
-type GuildRoleDeleteArgs(guildId : Snowflake, roleId : Snowflake) =
-    inherit System.EventArgs()
-
-    member this.GuildId = guildId
-    member this.RoleId = roleId
-
-type MessageCreateArgs(message : Message) =
-    inherit System.EventArgs()
-
-    member this.Message = message
-
-type MessageUpdateArgs(message : Message) =
-    inherit System.EventArgs()
-
-    member this.Message = message
-
-type MessageDeleteArgs(id : Snowflake, channelId : Snowflake) =
-    inherit System.EventArgs()
-
-    member this.Id = id
-    member this.ChannelID = channelId
-
-type MessageDeleteBulkArgs(ids : list<Snowflake>, channelId : Snowflake) =
-    inherit System.EventArgs()
-
-    member this.Ids = ids
-    member this.ChannelId = channelId
-
-type MessageReactionAddedArgs(userId : Snowflake, channelId : Snowflake, 
-                              messageId : Snowflake, emoji : Emoji) =
-    inherit System.EventArgs()
-
-    member this.UserId = userId
-    member this.ChannelId = channelId
-    member this.MessageId = messageId
-    member this.Emoji = emoji
-
-type MessageReactionRemovedArgs(userId : Snowflake, channelId : Snowflake, 
-                                messageId : Snowflake, emoji : Emoji) =
-    inherit System.EventArgs()
-
-    member this.UserId = userId
-    member this.ChannelId = channelId
-    member this.MessageId = messageId
-    member this.Emoji = emoji
-
-type MessageReactionRemoveAllArgs(channelId : Snowflake, messageId : Snowflake) =
-    inherit System.EventArgs()
-
-    member this.ChannelId = channelId
-    member this.MessageId = messageId
-
-type PresenceUpdateArgs(user : User, roles : list<Role>, 
-                        game : Activity, guildId : Snowflake, status : string) =
-    inherit System.EventArgs()
-
-    member this.User = user
-    member this.Roles = roles
-    member this.Game = game
-    member this.GuildId = guildId
-    member this.Status = status
-
-type TypingStartArgs(channelId : Snowflake, userId : Snowflake, timestamp : int) =
-    inherit System.EventArgs()
-
-    member this.ChannelId = channelId
-    member this.UserId = userId
-    member this.Timestamp = timestamp
-
-type UserUpdateArgs(user : User) =
-    inherit System.EventArgs()
-
-    member this.User = user
-
-type VoiceStateUpdateArgs(state : VoiceState) =
-    inherit System.EventArgs()
-
-    member this.State = state
-
-type VoiceServerUpdateArgs(token : string, guildId : Snowflake, endpoint : string) =
-    inherit System.EventArgs()
-
-    member this.Token = token
-    member this.GuildId = guildId
-    member this.Endpoint = endpoint
+type GatewayEvents =
+    | Ready of Payload
+    | Resume of Payload
+    | ChannelCreate of Channel
+    | ChannelUpdate of Channel
+    | ChannelDelete of Channel
+    | ChannelPinsUpdate of ChannelPinsUpdateMessage
+    | GuildCreate of Guild
+    | GuildUpdate of Guild
+    | GuildDelete of GuildDeleteMessage
+    | GuildBanAdd of User
+    | GuildBanRemove of User
+    | GuildEmojisUpdate of GuildEmojisUpdateMessage
+    | GuildIntegrationsUpdate of Snowflake
+    | GuildMemberAdd of GuildMember
+    | GuildMemberRemove of GuildMemberRemoveMessage
+    | GuildMemberUpdate of GuildMemberUpdateMessage
+    | GuildMembersChunk of GuildMembersChunkMessage
+    | GuildRoleCreate of GuildRoleCreateMessage
+    | GuildRoleUpdate of GuildRoleUpdateMessage
+    | GuildRoleDelete of GuildRoleDeleteMessage
+    | MessageCreate of Message
+    | MessageUpdate of Message
+    | MessageDelete of MessageDeleteMessage
+    | MessageDeleteBulk of MessageDeleteBulkMessage
+    | MessageReactionAdded of MessageReactionAddedMessage
+    | MessageReactionRemoved of MessageReactionRemovedMessage
+    | MessageReactionCleared of MessageReactionClearedMessage 
+    | PresenceUpdate of PresenceUpdateMessage
+    | TypingStart of TypingStartMessage
+    | UserUpdate of User
+    | VoiceStateUpdate of VoiceState
+    | VoiceServerUpdate of VoiceServerUpdateMessage
