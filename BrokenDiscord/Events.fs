@@ -146,7 +146,7 @@ type VoiceServerUpdateMessage = {
     Endpoint : string;
 }
 
-type ChannelEvents =
+type GatewayEvents =
     | Ready of Payload
     | Resume of Payload
     | ChannelCreate of Channel

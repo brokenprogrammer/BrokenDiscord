@@ -66,7 +66,7 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
 
-    let gatewayEvent = new Event<ChannelEvents>()
+    let gatewayEvent = new Event<GatewayEvents>()
     
     let Send (packet : ISerializable) = 
         async {
@@ -85,55 +85,55 @@ type Gateway () =
 
     let handleDispatch (payload : Payload) =
         let s = payload.s
-
         let t = payload.t.Value
 
         printf "%s %s" "\nHandling DISPATCH " t
         printf "%s" "\n"
+        printf "CONTENT: %s\n" (payload.d.ToString())
 
         let payloadData = payload.d
-        printf "CONTENT: %s" (payloadData.ToString())
+        let payloadJson = payloadData.ToString()
         
         //TODO: Naming
-        let trigger (du:'payload -> _) json =
-            ofJson<'payload> json |> du |> gatewayEvent.Trigger
+        let trigger eventType =
+            ofJson payloadJson |> eventType |> gatewayEvent.Trigger
 
         //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
         //TODO: Verify that single Snowflake cases gets parsed from JSON correctly.
         match t with
         | "READY"                       -> gatewayEvent.Trigger(Ready(payload))
         | "RESUMED"                     -> gatewayEvent.Trigger(Resume(payload))
-        | "CHANNEL_CREATE"              -> payloadData.ToString() |> trigger ChannelCreate
-        | "CHANNEL_UPDATE"              -> payloadData.ToString() |> trigger ChannelUpdate
-        | "CHANNEL_DELETE"              -> payloadData.ToString() |> trigger ChannelDelete
-        | "CHANNEL_PINS_UPDATE"         -> payloadData.ToString() |> trigger ChannelPinsUpdate  //TODO: Timestamp not being parsed correctly.
-        | "GUILD_CREATE"                -> payloadData.ToString() |> trigger GuildCreate
-        | "GUILD_UPDATE"                -> payloadData.ToString() |> trigger GuildUpdate
-        | "GUILD_DELETE"                -> payloadData.ToString() |> trigger GuildDelete
-        | "GUILD_BAN_ADD"               -> payloadData.ToString() |> trigger GuildBanAdd 
-        | "GUILD_BAN_REMOVE"            -> payloadData.ToString() |> trigger GuildBanRemove
-        | "GUILD_EMOJIS_UPDATE"         -> payloadData.ToString() |> trigger GuildEmojisUpdate
-        | "GUILD_INTEGRATIONS_UPDATE"   -> payloadData.ToString() |> trigger GuildIntegrationsUpdate
-        | "GUILD_MEMBER_ADD"            -> payloadData.ToString() |> trigger GuildMemberAdd
-        | "GUILD_MEMBER_REMOVE"         -> payloadData.ToString() |> trigger GuildMemberRemove
-        | "GUILD_MEMBER_UPDATE"         -> payloadData.ToString() |> trigger GuildMemberUpdate
-        | "GUILD_MEMBERS_CHUNK"         -> payloadData.ToString() |> trigger GuildMembersChunk
-        | "GUILD_ROLE_CREATE"           -> payloadData.ToString() |> trigger GuildRoleCreate
-        | "GUILD_ROLE_UPDATE"           -> payloadData.ToString() |> trigger GuildRoleUpdate
-        | "GUILD_ROLE_DELETE"           -> payloadData.ToString() |> trigger GuildRoleDelete
-        | "MESSAGE_CREATE"              -> payloadData.ToString() |> trigger MessageCreate
-        | "MESSAGE_UPDATE"              -> payloadData.ToString() |> trigger MessageUpdate
-        | "MESSAGE_DELETE"              -> payloadData.ToString() |> trigger MessageDelete
-        | "MESSAGE_DELETE_BULK"         -> payloadData.ToString() |> trigger MessageDeleteBulk
-        | "MESSAGE_REACTION_ADDED"      -> payloadData.ToString() |> trigger MessageReactionAdded
-        | "MESSAGE_REACTION_REMOVE"     -> payloadData.ToString() |> trigger MessageReactionRemoved
-        | "MESSAGE_REACTIONS_CLEARED"   -> payloadData.ToString() |> trigger MessageReactionCleared
-        | "PRESENCE_UPDATE"             -> payloadData.ToString() |> trigger PresenceUpdate
-        | "TYPING_START"                -> payloadData.ToString() |> trigger TypingStart
-        | "USER_UPDATE"                 -> payloadData.ToString() |> trigger UserUpdate
+        | "CHANNEL_CREATE"              -> trigger ChannelCreate
+        | "CHANNEL_UPDATE"              -> trigger ChannelUpdate
+        | "CHANNEL_DELETE"              -> trigger ChannelDelete
+        | "CHANNEL_PINS_UPDATE"         -> trigger ChannelPinsUpdate  //TODO: Timestamp not being parsed correctly.
+        | "GUILD_CREATE"                -> trigger GuildCreate
+        | "GUILD_UPDATE"                -> trigger GuildUpdate
+        | "GUILD_DELETE"                -> trigger GuildDelete
+        | "GUILD_BAN_ADD"               -> trigger GuildBanAdd 
+        | "GUILD_BAN_REMOVE"            -> trigger GuildBanRemove
+        | "GUILD_EMOJIS_UPDATE"         -> trigger GuildEmojisUpdate
+        | "GUILD_INTEGRATIONS_UPDATE"   -> trigger GuildIntegrationsUpdate
+        | "GUILD_MEMBER_ADD"            -> trigger GuildMemberAdd
+        | "GUILD_MEMBER_REMOVE"         -> trigger GuildMemberRemove
+        | "GUILD_MEMBER_UPDATE"         -> trigger GuildMemberUpdate
+        | "GUILD_MEMBERS_CHUNK"         -> trigger GuildMembersChunk
+        | "GUILD_ROLE_CREATE"           -> trigger GuildRoleCreate
+        | "GUILD_ROLE_UPDATE"           -> trigger GuildRoleUpdate
+        | "GUILD_ROLE_DELETE"           -> trigger GuildRoleDelete
+        | "MESSAGE_CREATE"              -> trigger MessageCreate
+        | "MESSAGE_UPDATE"              -> trigger MessageUpdate
+        | "MESSAGE_DELETE"              -> trigger MessageDelete
+        | "MESSAGE_DELETE_BULK"         -> trigger MessageDeleteBulk
+        | "MESSAGE_REACTION_ADDED"      -> trigger MessageReactionAdded
+        | "MESSAGE_REACTION_REMOVE"     -> trigger MessageReactionRemoved
+        | "MESSAGE_REACTIONS_CLEARED"   -> trigger MessageReactionCleared
+        | "PRESENCE_UPDATE"             -> trigger PresenceUpdate
+        | "TYPING_START"                -> trigger TypingStart
+        | "USER_UPDATE"                 -> trigger UserUpdate
         | "USER_SETTINGS_UPDATE"        -> ()
-        | "VOICE_STATE_UPDATE"          -> payloadData.ToString() |> trigger VoiceStateUpdate
-        | "VOICE_SERVER_UPDATE"         -> payloadData.ToString() |> trigger VoiceServerUpdate
+        | "VOICE_STATE_UPDATE"          -> trigger VoiceStateUpdate
+        | "VOICE_SERVER_UPDATE"         -> trigger VoiceServerUpdate
         | _                             -> () // TODO: Log Unhandled event
 
     //TODO: better naming for this function
