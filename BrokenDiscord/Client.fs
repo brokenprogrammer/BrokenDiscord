@@ -2,6 +2,7 @@
 
 open BrokenDiscord.Gateway
 open BrokenDiscord.Api
+open BrokenDiscord.Types
 
 open System
 open Events
@@ -21,6 +22,12 @@ type Client (token : string) =
     member val Events = gw.GatewayEvent
     
     member this.login() = token |> gw.connect |> Async.RunSynchronously
+
+    ///Get a channel by ID. Returns a channel object.
+    member this.GetChannel(id : Snowflake) = 
+        let endpoint = String.Format("/channels/{0}", id)
+        let channelJson = endpoint |> api.GET |> Async.RunSynchronously 
+        channelJson |> ofJson<Channel>
 
     interface System.IDisposable with
         member this.Dispose () =

@@ -22,11 +22,9 @@ type Api (token : string) =
     member this.GET path =
         async {
             let! res = client.GetAsync(baseURL + path) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return Some content
-            else
-                return None
+            do res.EnsureSuccessStatusCode |> ignore
+            let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
+            return content
         }
     
     member this.POST path content =
