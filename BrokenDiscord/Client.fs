@@ -17,7 +17,7 @@ type Client () =
     member val Events = gw.GatewayEvent
     
     //TODO: Should take token in params.
-    member this.login() = gw.con() |> Async.RunSynchronously
+    member this.login(token : string) = token |> gw.connect |> Async.RunSynchronously
 
     interface System.IDisposable with
         member this.Dispose () =
