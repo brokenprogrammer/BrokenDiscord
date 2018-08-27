@@ -308,3 +308,14 @@ type Guild =  {
         Channels                        : list<Channel> option;
         Presences                       : list<PresenceUpdate> option;
     }
+
+type WebModifyChannelParams = {
+        name                    : string;
+        position                : int;
+        topic                   : string;
+        nsfw                    : bool;
+        bitrate                 : int;
+        user_limit              : int;
+        permission_overwrites   : list<Overwrite>;
+        parent_id               : Snowflake;
+    }
