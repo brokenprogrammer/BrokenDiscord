@@ -7,13 +7,9 @@ open System.Net.Http.Headers
 open BrokenDiscord.Types
 open System.Text
 
-//TODO: This should be set on type created and hidden from api user.
 let setHeaders (client : HttpClient) (token : string) (userAgent : string) = 
-    //client.DefaultRequestHeaders.Accept.Clear()
-    //client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"))
     client.DefaultRequestHeaders.Add("Authorization", String.Format("Bot {0}", token))
     client.DefaultRequestHeaders.Add("User-Agent", userAgent)
-    //client.DefaultRequestHeaders.Add("Content-Type", "application/json")
 
 type Api (token : string) =
     let baseURL = "https://discordapp.com/api"
@@ -48,3 +44,7 @@ type Api (token : string) =
     
     member this.DELETE path =
         0
+    
+    interface System.IDisposable with
+        member this.Dispose () =
+            client.Dispose()
