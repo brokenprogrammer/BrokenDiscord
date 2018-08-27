@@ -1,12 +1,17 @@
 ﻿module BrokenDiscord.Client
 
 open BrokenDiscord.Gateway
+open BrokenDiscord.Api
+open BrokenDiscord.Types
 
 open System
 open Events
 
-type Client () =
+type Client (token : string) =
+    let token = token
+
     let gw = new Gateway()
+    let api = new Api(token)
     
     let mutable SessionId = 0
 
@@ -16,9 +21,15 @@ type Client () =
     
     member val Events = gw.GatewayEvent
     
-    //TODO: Should take token in params.
-    member this.login() = gw.con() |> Async.RunSynchronously
+    member this.login() = token |> gw.connect |> Async.RunSynchronously
+
+    ///Get a channel by ID. Returns a channel object.
+    member this.GetChannel(id : Snowflake) = 
+        let endpoint = String.Format("/channels/{0}", id)
+        let channelJson = endpoint |> api.GET |> Async.RunSynchronously 
+        channelJson |> ofJson<Channel>
 
     interface System.IDisposable with
         member this.Dispose () =
             (gw :> IDisposable).Dispose()
+            (api :> IDisposable).Dispose()

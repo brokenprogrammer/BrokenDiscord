@@ -65,6 +65,7 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 
 type Gateway () =
     let socket : ClientWebSocket = new ClientWebSocket()
+    let gatewayURI = "wss://gateway.discord.gg/?v=6&encoding=json"
 
     let gatewayEvent = new Event<GatewayEvents>()
     
@@ -159,11 +160,11 @@ type Gateway () =
         | OpCode.HeartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
-    let Run (uri : string) (token : string) = 
+    let Run (token : string) = 
         async {
             printf "%s" "Connecting...\n"
             
-            do! socket.ConnectAsync(Uri(uri), CancellationToken.None) |> Async.AwaitTask
+            do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
             
             let identification = IdentifyPacket(token, 0, 1)
             do! Send(identification) |> Async.Ignore
@@ -178,7 +179,7 @@ type Gateway () =
         }
 
     // Test method that calls the Run function with the target websocket uri
-    member this.con() = Run "wss://gateway.discord.gg/?v=6&encoding=json" "NDc2NzQyMjI4NTg1MzQ5MTQy.DkyAlw.t9qBUy5MEfFGoHlIFYacVXIKxL4"
+    member this.connect (token : string) = Run token
 
     [<CLIEvent>]
     member this.GatewayEvent = gatewayEvent.Publish
