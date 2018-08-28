@@ -28,7 +28,7 @@ type Client (token : string) =
     /// Get a channel by ID. Returns a channel object.
     member this.GetChannel (channelId : Snowflake) = 
         let endpoint = String.Format("/channels/{0}", channelId)
-        let channelJson = endpoint |> api.GET |> Async.RunSynchronously 
+        let channelJson = api.GET(endpoint) |> Async.RunSynchronously 
         channelJson |> ofJson<Channel>
     
     /// Update a channels settings. Returns a channel on success, 
@@ -36,7 +36,8 @@ type Client (token : string) =
     member this.ModifyChannel (channelId : Snowflake) (jsonParams : WebModifyChannelParams) = 
         let endpoint = String.Format("/channels/{0}", channelId)
         let json = jsonParams |> toJson
-        let channelJson = api.PUT endpoint json |> Async.RunSynchronously
+        let channelJson = api.PUT(endpoint, json) |> Async.RunSynchronously
+        //let channelJson = api.PUT(endpoint; json) |> Async.RunSynchronously
         match channelJson with
         | Some x -> ofJson<Channel> |> Some
         | None -> None
@@ -45,7 +46,7 @@ type Client (token : string) =
     /// Returns a channel object on success.
     member this.DeleteChannel (channelId : Snowflake) =
         let endpoint = String.Format("/channels/{0}", channelId)
-        let channelJson = endpoint |> api.DELETE |> Async.RunSynchronously
+        let channelJson = api.DELETE(endpoint) |> Async.RunSynchronously
         match channelJson with
         | Some x -> ofJson<Channel> |> Some
         | None -> None
