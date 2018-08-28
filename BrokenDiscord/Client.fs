@@ -3,6 +3,8 @@
 open BrokenDiscord.Gateway
 open BrokenDiscord.Api
 open BrokenDiscord.Types
+open BrokenDiscord.Json
+open BrokenDiscord.Json.Json
 
 open System
 open Events
