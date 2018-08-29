@@ -319,3 +319,30 @@ type WebModifyChannelParams = {
         permission_overwrites   : list<Overwrite>;
         parent_id               : Snowflake;
     }
+
+type WebGetChannelMessagesParams = {
+        around  : Snowflake option;
+        before  : Snowflake option;
+        after   : Snowflake option;
+        limit   : int option;
+    }
+
+type WebCreateMessageParams = {
+        content      : string;
+        nounce       : Snowflake option;
+        tts          : bool option;
+        file         : string option; //TODO: Api says type is "File contents"
+        embed        : Embed option;
+        payload_json : string option;
+    }
+
+type WebGetReactionsParams = {
+        before  : Snowflake option;
+        after   : Snowflake option;
+        limit   : int option;
+    }
+
+type WebEditMessageParams = {
+        content : string option;
+        embed   : Embed option;
+    }
