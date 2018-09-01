@@ -18,7 +18,7 @@ let client = new Client("BOT TOKEN HERE")
 let handleMessage (message : Message) =
  if message.Content.Equals("ping") then
   let msg = {content = "pong"; nounce = None; tts = None; file = None; embed = None; payload_json = None}
-   client.CreateMessage(message.ChannelId, msg) |> ignore
+  client.CreateMessage(message.ChannelId, msg) |> ignore
         
 let handleEvents = function
  | MessageCreate m -> (handleMessage m)
