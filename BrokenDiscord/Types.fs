@@ -3,6 +3,7 @@
 open System
 
 open Newtonsoft.Json.Linq
+open Newtonsoft.Json
 
 //TODO: This payload object might be isolated to the Gateway module.
 // OP = opcode 
@@ -309,6 +310,25 @@ type Guild =  {
         Presences                       : list<PresenceUpdate> option;
     }
 
+//TODO: Should contain invite metadata
+type Invite = {
+        code                        : string;
+        guild                       : Guild option;
+        channel                     : Channel;
+        approximate_presence_count  : int option;
+        approximate_member_count    : int option;
+    }
+
+type InviteMetadata = {
+        inviter     : User;
+        uses        : int;
+        max_uses    : int;
+        max_age     : int;
+        temporary   : bool;
+        created_at  : DateTime;
+        revoked     : bool;
+    }
+
 type WebModifyChannelParams = {
         name                    : string;
         position                : int;
@@ -345,4 +365,23 @@ type WebGetReactionsParams = {
 type WebEditMessageParams = {
         content : string option;
         embed   : Embed option;
+    }
+
+type WebEditChannelPermissionsParams = {
+        allow       : int;
+        deny        : int;
+        [<JsonProperty "type">]
+        editType    : string;
+    }
+
+type WebCreateChannelInviteParams = {
+        max_age     : int option;
+        max_uses    : int option;
+        temporary   : bool option;
+        unique      : bool option;
+    }
+
+type WebGroupDMAddRecipientParams = {
+        access_token    : string;
+        nick            : string;
     }

@@ -106,34 +106,75 @@ type Client (token : string) =
     /// Deletes all reactions on a message.
     member this.DeleteAllReactions (channelId : Snowflake, messageId : Snowflake) = 
         let endpoint = String.Format("/channels/{0}/messages/{1}/reactions", channelId, messageId)
-        api.DELETE(endpoint)
+        api.DELETE(endpoint) |> Async.RunSynchronously
 
     /// Edit a previously sent message.
     /// Returns a message object
     member this.EditMessage (channelId : Snowflake, messageId : Snowflake, jsonParams : WebEditMessageParams) =
         let endpoint = String.Format("/channels/{0}/messages/{1}", channelId, messageId)
-        api.PUT<Message>(endpoint, (jsonParams |> toJson))
+        api.PUT<Message>(endpoint, (jsonParams |> toJson)) |> Async.RunSynchronously
 
     /// Delete a message.
     member this.DeleteMessage (channelId : Snowflake, messageId : Snowflake) = 
         let endpoint = String.Format("/channels/{0}/messages/{1}", channelId, messageId)
-        api.DELETE(endpoint)
+        api.DELETE(endpoint) |> Async.RunSynchronously
 
     /// Delete multiple messages in a single request.
     member this.BulkDeleteMessages (channelId : Snowflake, messageIds : list<Snowflake>) =
         let endpoint = String.Format("/channels/{0}/messages/bulk-delete", channelId)
-        api.POST(endpoint, (messageIds |> toJson))
+        api.POST(endpoint, (messageIds |> toJson)) |> Async.RunSynchronously
 
-    member this.EditChannelPermissions = 0
-    member this.GetChannelInvites = 0
-    member this.CreateChannelInvite = 0
-    member this.DeleteChannelPermission = 0
-    member this.TriggerTypingIndicator = 0
-    member this.GetPinnedMessages = 0
-    member this.AddPinnedChannelMessage = 0
-    member this.DeletePinnedChannelMessage = 0
-    member this.GroupDMAddRecipient = 0
-    member this.GroupDMRemoveRecipient = 0
+    /// Edit the channel permission overwrites for a user or role in a channel.
+    member this.EditChannelPermissions (channelId : Snowflake, overwriteId : Snowflake, 
+                                        jsonParams : WebEditChannelPermissionsParams) = 
+        let endpoint = String.Format("/channels/{0}/permissions/{1}", channelId, overwriteId)
+        api.PUT(endpoint, (jsonParams |> toJson)) |> Async.RunSynchronously |> ignore
+    
+    /// Returns a list of invite objects for the channel.
+    member this.GetChannelInvites (channelId : Snowflake) =
+        let endpoint = String.Format("/channels/{0}/invites", channelId)
+        api.GET<Invite>(endpoint) |> Async.RunSynchronously
+    
+    /// Create a new invite object for the channel.
+    member this.CreateChannelInvite (channelId : Snowflake, jsonParams : WebCreateChannelInviteParams)= 
+        let endpoint = String.Format("/channels/{0}/invites", channelId)
+        api.POST<Invite>(endpoint, (jsonParams |> toJson)) |> Async.RunSynchronously
+        
+    /// Delete a channel permission overwrite for a user or role in a channel.
+    member this.DeleteChannelPermission (channelId : Snowflake, overwriteId : Snowflake) = 
+        let endpoint = String.Format("/channels/{0}/permissions/{1}", channelId, overwriteId)
+        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
+    
+    /// Post a typing indicator for the specified channel. 
+    member this.TriggerTypingIndicator (channelId : Snowflake) = 
+        let endpoint = String.Format("/channels/{0}/typing", channelId)
+        api.POST(endpoint, "") |> Async.RunSynchronously |> ignore
+    
+    /// Returns all pinned messages in the channel as an array of message objects.
+    member this.GetPinnedMessages (channelId : Snowflake) = 
+        let endpoint = String.Format("/channels/{0}/typing", channelId)
+        api.GET<list<Message>>(endpoint) |> Async.RunSynchronously
+    
+    /// Pin a message in a channel.
+    member this.AddPinnedChannelMessage (channelId : Snowflake, messageId : Snowflake) = 
+        let endpoint = String.Format("/channels/{0}/pins/{1}", channelId, messageId)
+        api.PUT(endpoint, "") |> Async.RunSynchronously |> ignore
+    
+    /// Delete a pinned message in a channel. 
+    member this.DeletePinnedChannelMessage (channelId : Snowflake, messageId : Snowflake) = 
+        let endpoint = String.Format("/channels/{0}/pins/{1}", channelId, messageId)
+        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
+
+    /// Adds a recipient to a Group DM using their access token.
+    member this.GroupDMAddRecipient (channelId : Snowflake, userId : Snowflake, 
+                                     jsonParams : WebGroupDMAddRecipientParams) = 
+        let endpoint = String.Format("/channels/{0}/recipients/{1}", channelId, userId)
+        api.PUT(endpoint, "") |> Async.RunSynchronously |> ignore
+    
+    /// Removes a recipient from a Group DM.
+    member this.GroupDMRemoveRecipient (channelId : Snowflake, userId : Snowflake) =
+        let endpoint = String.Format("/channels/{0}/recipients/{1}", channelId, userId)
+        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
 
     interface System.IDisposable with
         member this.Dispose () =
