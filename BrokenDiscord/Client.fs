@@ -61,7 +61,7 @@ type Client (token : string) =
     /// Post a message to a guild text or DM channel.
     member this.CreateMessage (channelId : Snowflake, message : WebCreateMessageParams) =
         //TODO: Might have to be restructured to work with uploading files.
-        let endpoint = String.Format("/channels/{channel.id}/messages")
+        let endpoint = String.Format("/channels/{0}/messages", channelId)
         let json = message |> toJson
         api.POST<Message>(endpoint, json) |> Async.RunSynchronously
 
