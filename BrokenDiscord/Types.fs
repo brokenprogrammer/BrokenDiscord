@@ -180,6 +180,7 @@ type MessageType =
 
 type Message = {
         Id              : Snowflake;
+        [<JsonProperty "channel_id">]
         ChannelId       : Snowflake;
         Author          : User;
         Content         : string;
