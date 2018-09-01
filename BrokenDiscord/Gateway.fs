@@ -5,11 +5,12 @@ open System.Net.WebSockets
 open System.Threading
 open System.Threading.Tasks
 
-open Newtonsoft.Json
 open Newtonsoft.Json.Linq
 
 open BrokenDiscord.Events
 open BrokenDiscord.Types
+open BrokenDiscord.Json
+open BrokenDiscord.Json.Json
 open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
 
@@ -28,11 +29,11 @@ type OpCode =
     | HeartbeatACK = 11
 
 //TODO: Place these in their own json module
-let jsonConverter = Fable.JsonConverter() :> JsonConverter
-let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
-let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
-let ofJsonPart<'T> value (source : JObject) = ofJson<'T> (source.[value].ToString())
-let ofJsonValue<'T> value (source : JObject) = (source.[value].Value<'T>())
+//let jsonConverter = Fable.JsonConverter() :> JsonConverter
+//let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
+//let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+//let ofJsonPart<'T> value (source : JObject) = ofJson<'T> (source.[value].ToString())
+//let ofJsonValue<'T> value (source : JObject) = (source.[value].Value<'T>())
 
 type ISerializable =
     abstract member Serialize : unit -> string

@@ -3,6 +3,7 @@
 open System
 
 open Newtonsoft.Json.Linq
+open Newtonsoft.Json
 
 //TODO: This payload object might be isolated to the Gateway module.
 // OP = opcode 
@@ -179,6 +180,7 @@ type MessageType =
 
 type Message = {
         Id              : Snowflake;
+        [<JsonProperty "channel_id">]
         ChannelId       : Snowflake;
         Author          : User;
         Content         : string;
@@ -307,4 +309,80 @@ type Guild =  {
         Members                         : list<GuildMember> option;
         Channels                        : list<Channel> option;
         Presences                       : list<PresenceUpdate> option;
+    }
+
+//TODO: Should contain invite metadata
+type Invite = {
+        code                        : string;
+        guild                       : Guild option;
+        channel                     : Channel;
+        approximate_presence_count  : int option;
+        approximate_member_count    : int option;
+    }
+
+type InviteMetadata = {
+        inviter     : User;
+        uses        : int;
+        max_uses    : int;
+        max_age     : int;
+        temporary   : bool;
+        created_at  : DateTime;
+        revoked     : bool;
+    }
+
+type WebModifyChannelParams = {
+        name                    : string;
+        position                : int;
+        topic                   : string;
+        nsfw                    : bool;
+        bitrate                 : int;
+        user_limit              : int;
+        permission_overwrites   : list<Overwrite>;
+        parent_id               : Snowflake;
+    }
+
+type WebGetChannelMessagesParams = {
+        around  : Snowflake option;
+        before  : Snowflake option;
+        after   : Snowflake option;
+        limit   : int option;
+    }
+
+type WebCreateMessageParams = {
+        content      : string;
+        nounce       : Snowflake option;
+        tts          : bool option;
+        file         : string option; //TODO: Api says type is "File contents"
+        embed        : Embed option;
+        payload_json : string option;
+    }
+
+type WebGetReactionsParams = {
+        before  : Snowflake option;
+        after   : Snowflake option;
+        limit   : int option;
+    }
+
+type WebEditMessageParams = {
+        content : string option;
+        embed   : Embed option;
+    }
+
+type WebEditChannelPermissionsParams = {
+        allow       : int;
+        deny        : int;
+        [<JsonProperty "type">]
+        editType    : string;
+    }
+
+type WebCreateChannelInviteParams = {
+        max_age     : int option;
+        max_uses    : int option;
+        temporary   : bool option;
+        unique      : bool option;
+    }
+
+type WebGroupDMAddRecipientParams = {
+        access_token    : string;
+        nick            : string;
     }
