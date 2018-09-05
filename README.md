@@ -6,28 +6,26 @@ Discord Library written in F#
 ## PingPong
 ```fsharp
 module Program
+    open System
+    open BrokenDiscord.Client
+    open BrokenDiscord.Events
+    open BrokenDiscord.Types
 
-open System
-open BrokenDiscord
-open BrokenDiscord.Client
-open BrokenDiscord.Events
-open BrokenDiscord.Types
+    let client = new Client("BOT TOKEN HERE")
 
-let client = new Client("BOT TOKEN HERE")
-
-let handleMessage (message : Message) =
- if message.Content.Equals("ping") then
-  let msg = {content = "pong"; nounce = None; tts = None; file = None; embed = None; payload_json = None}
-  client.CreateMessage(message.ChannelId, msg) |> ignore
+    let handleMessage (message : Message) =
+     if message.content.Equals("ping") then
+      let msg = {content = "pong"; nonce = None; tts = None; file = None; embed = None; payload_json = None}
+      client.CreateMessage(message.channelId, msg) |> ignore
         
-let handleEvents = function
- | MessageCreate m -> (handleMessage m)
- | _ -> ()
+    let handleEvents = function
+     | MessageCreate m -> (handleMessage m)
+     | _ -> ()
 
-[<EntryPoint>]
-let main argv =
- client.Events |> Event.add handleEvents
- client.login()
- Console.ReadLine() |> ignore 
- 0
+    [<EntryPoint>]
+    let main argv =
+     client.Events |> Event.add handleEvents
+     client.login()
+     Console.ReadLine() |> ignore 
+     0
 ```
