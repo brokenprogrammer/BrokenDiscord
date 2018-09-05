@@ -15,7 +15,10 @@ let setHeaders (client : HttpClient) (token : string) (userAgent : string) =
 
 type Api (token : string) =
     let baseURL = "https://discordapp.com/api"
-    let userAgent = String.Format("DiscordBot ($url, $versionNumber)", "https://github.com/brokenprogrammer/BrokenDiscord", "6")
+    let userAgent =
+        sprintf "DiscordBot (%s, %s)"
+        <| "https://github.com/brokenprogrammer/BrokenDiscord"
+        <| "6"
     let token = token
     
     let client : HttpClient = new HttpClient()
@@ -43,7 +46,7 @@ type Api (token : string) =
     
     member this.PUT<'T> (path : string, content : string) =
         async {
-            let! res = client.PutAsync((baseURL + path), StringContent(content, Encoding.UTF8, "appliation/json")) |> Async.AwaitTask
+            let! res = client.PutAsync((baseURL + path), StringContent(content, Encoding.UTF8, "application/json")) |> Async.AwaitTask
             if res.IsSuccessStatusCode then
                 let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
                 return content |> ofJson<'T> |> Some

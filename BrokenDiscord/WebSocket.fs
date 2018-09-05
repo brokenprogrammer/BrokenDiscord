@@ -61,7 +61,7 @@ module WebSocket =
     
     /// Receives a message and writes it to the specified stream
     /// Attempts to handle closes gracefully
-    let receieveMessage cancellationToken bufferSize messageType (writeableStream : IO.Stream) (socket : ClientWebSocket) =
+    let receiveMessage cancellationToken bufferSize messageType (writeableStream : IO.Stream) (socket : ClientWebSocket) =
         async {
             let buffer = new ArraySegment<Byte>(Array.create (bufferSize) Byte.MinValue)
             
@@ -89,7 +89,7 @@ module WebSocket =
     let receieveMessageUTF8 (socket : ClientWebSocket) = 
         async {
             let stream = new IO.MemoryStream()
-            do! receieveMessage CancellationToken.None defaultBufferSize WebSocketMessageType.Text stream socket
+            do! receiveMessage CancellationToken.None defaultBufferSize WebSocketMessageType.Text stream socket
             return
                 stream.ToArray()
                 |> Text.Encoding.UTF8.GetString

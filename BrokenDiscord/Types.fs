@@ -13,162 +13,241 @@ open Newtonsoft.Json
 type Payload = {op : int; d : JObject; s : int option; t : string option}
 
 type Snowflake = uint64
+module Snowflake =
+    let Epoch = new DateTime(2015, 1, 1)
+    let EpochLocal = new DateTimeOffset(Epoch, TimeZoneInfo.Local.BaseUtcOffset)
 
-type Overwrite = {Id : Snowflake; Type : string; Allow : int; Deny : int}
+    let TimeStamp (snowflake : Snowflake) = 
+        snowflake >>> 22 |> float
+        |> TimeSpan.FromMilliseconds
+        |> (+) Epoch
 
-type EmbedThumbnail = {
-        URL         : string option;
-        ProxyURL    : string option;
-        Height      : int option;
-        Width       : int option;
-    }
+    let OfTime t : Snowflake =
+        (t - Epoch).TotalMilliseconds
+        |> uint64
+        <<< 22
 
-type EmbedVideo = {
-        URL     : string option;
-        Height  : int option;
-        Width   : int option;
-    }
+    let WithTime snowflake t =
+        OfTime t
+        |> (|||) snowflake
 
-type EmbedImage = {
-        URL         : string option;
-        ProxyURL    : string option;
-        Height      : int option;
-        Width       : int option;
-    }
+type PermsTarget =
+    User | Role
+    with
+    override x.ToString () =
+        match x with User -> "user" | Role -> "role"
+    member __.OfString =
+        function "user" -> User | "role" -> Role
 
-type EmbedProvider = {
-        Name    : string option;
-        URL     : string option;
-    }
+[<Flags>]
+type Perms =
+    | CreateInstantInvite = 0x00000001
+    | KickMembers         = 0x00000002
+    | BanMembers          = 0x00000004
+    | Administrator       = 0x00000008
+    | ManageChannels      = 0x00000010
+    | ManageGuild         = 0x00000020
+    | AddReactions        = 0x00000040
+    | ViewAuditLog        = 0x00000080
+    | ViewChannel         = 0x00000400
+    | SendMessages        = 0x00000800
+    | SendTtsMessages     = 0x00001000
+    | ManageMessages      = 0x00002000
+    | EmbedLinks          = 0x00004000
+    | AttachFiles         = 0x00008000
+    | ReadMessageHistory  = 0x00010000
+    | MentionEveryone     = 0x00020000
+    | UseExternalEmojis   = 0x00040000
+    | Connect             = 0x00100000
+    | Speak               = 0x00200000
+    | MuteMembers         = 0x00400000
+    | DeafenMembers       = 0x00800000
+    | MoveMembers         = 0x01000000
+    | UseVAD              = 0x02000000
+    | PrioritySpeaker     = 0x00000100
+    | ChangeNickname      = 0x04000000
+    | ManageNicknames     = 0x08000000
+    | ManageRoles         = 0x10000000
+    | ManageWebhooks      = 0x20000000
+    | ManageEmojis        = 0x40000000
 
-type EmbedAuthor = {
-        Name            : string option;
-        URL             : string option;
-        IconURL         : string option;
-        ProxyIconURL    : string option;
-    }
-
-type EmbedFooter = {
-        Text            : string;
-        IconURL         : string option;
-        ProxyIconURL    : string option;
-    }
-
-type EmbedField = {
-        Name    : string;
-        Value   : string;
-        Inline  : bool option;
-    }
-
-type Embed = {
-        Title       : string option;
-        Type        : string option;
-        Description : string option;
-        URL         : string option;
-        Timestamp   : DateTime option;
-        Color       : int option;
-        Footer      : EmbedFooter option;
-        Image       : EmbedImage option;
-        Thumbnail   : EmbedThumbnail option;
-        Video       : EmbedVideo option;
-        Provider    : EmbedProvider option;
-        Author      : EmbedAuthor option;
-        Fields      : list<EmbedField> option;
-    }
-
-type Attachment = {
-        Id          : Snowflake;
-        Filename    : string;
-        Size        : int;
-        URL         : string;
-        ProxyURL    : string;
-        Height      : int option;
-        Width       : int option;
+let serverWideMFARequiresMFA (p : Perms) =
+    function
+    | Perms.KickMembers   | Perms.BanMembers
+    | Perms.Administrator | Perms.ManageChannels
+    | Perms.ManageGuild   | Perms.ManageMessages
+    | Perms.ManageRoles   | Perms.ManageWebhooks
+    | Perms.ManageEmojis -> true
+    | _ -> false
+    
+type Overwrite = {
+        id : Snowflake
+        [<JsonProperty "type">]
+        kind : PermsTarget
+        allow : int
+        deny : int
     }
 
 type User = {
-        Id              : Snowflake;
-        Username        : string;
-        Discriminator   : string;
-        Avatar          : string option;
-        Bot             : bool option;
-        MFAEnabled      : bool option;
-        Locale          : string option;
-        Verified        : bool option;
-        Email           : string option;
+        id              : Snowflake
+        username        : string
+        discriminator   : string
+        avatar          : string option
+        bot             : bool option
+        mfaEnabled      : bool option
+        locale          : string option
+        verified        : bool option
+        email           : string option
     }
 
 type Role = {
-        Id          : Snowflake;
-        Name        : string;
-        Color       : int;
-        Hoise       : bool;
-        Position    : int;
-        Permissions : int;
-        Managed     : bool;
-        Mentionable : bool;
+        id          : Snowflake
+        name        : string
+        color       : int
+        hoist       : bool
+        position    : int
+        permissions : int
+        managed     : bool
+        mentionable : bool
     }
 
-type Emoji = {
-        Id              : Snowflake option;
-        Name            : string;
-        Roles           : list<Role> option;
-        User            : User option;
-        RequireColons   : bool option;
-        Managed         : bool option;
-        Animated        : bool option;
-    }
-
-type Reaction = {
-        Count   : int;
-        Me      : bool;
-        Emoji   : Emoji;
-    }
-    
-type ChannelType = 
+type ChannelKind = 
     | GuildText     = 0
     | DM            = 1
     | GuildVoice    = 2
     | GroupDM       = 3
     | GuildCategory = 4
-
+    
 type Channel = {
-        Id                      : Snowflake;
-        Type                    : ChannelType;
-        GuildID                 : Snowflake option;
-        Position                : int option;
-        PermissionOverwrites    : list<Overwrite>;
-        Name                    : string option;
-        Topic                   : string option;
-        NSFW                    : bool option;
-        LastMessageID           : Snowflake option;
-        Bitrate                 : int option;
-        UserLimit               : int option;
-        Recipients              : list<User>;
-        Icon                    : string option;
-        OwnerID                 : Snowflake option;
-        ApplicationID           : Snowflake option;
-        ParentID                : Snowflake option;
-        LastPinTimestamp        : DateTime option;
+    id                      : Snowflake
+    [<JsonProperty "type">]
+    kind                    : ChannelKind
+    guildId                 : Snowflake option
+    position                : int option
+    permissionOverwrites    : Overwrite[]
+    name                    : string option
+    topic                   : string option
+    nsfw                    : bool option
+    lastMessageId           : Snowflake option
+    bitrate                 : int option
+    userLimit               : int option
+    recipients              : User[]
+    icon                    : string option
+    ownerId                 : Snowflake option
+    applicationId           : Snowflake option
+    parentId                : Snowflake option
+    lastPinTimestamp        : DateTime option
+}
+
+type EmbedThumbnail = {
+        url         : string option
+        proxyURL    : string option
+        height      : int option
+        width       : int option
     }
 
-type MessageActivityType =
+type EmbedVideo = {
+        url     : string option
+        height  : int option
+        width   : int option
+    }
+
+type EmbedImage = {
+        url         : string option
+        proxyURL    : string option
+        height      : int option
+        width       : int option
+    }
+
+type EmbedProvider = {
+        name    : string option
+        url     : string option
+    }
+
+type EmbedAuthor = {
+        name            : string option
+        url             : string option
+        iconURL         : string option
+        proxyIconURL    : string option
+    }
+
+type EmbedFooter = {
+        text            : string
+        iconURL         : string option
+        proxyIconURL    : string option
+    }
+
+type EmbedField = {
+        name    : string
+        value   : string
+        inlinep : bool option
+    }
+
+    
+type Embed = {
+        title       : string option
+        [<JsonProperty "type">]
+        kind        : ChannelKind
+        description : string option
+        url         : string option
+        timestamp   : DateTime option
+        color       : int option
+        footer      : EmbedFooter option
+        image       : EmbedImage option
+        thumbnail   : EmbedThumbnail option
+        video       : EmbedVideo option
+        provider    : EmbedProvider option
+        author      : EmbedAuthor option
+        fields      : EmbedField[] option
+    }
+
+type Attachment = {
+        id          : Snowflake
+        filename    : string
+        size        : int
+        url         : string
+        proxyURL    : string
+        height      : int option
+        width       : int option
+    }
+
+type Emoji = {
+        id              : Snowflake option
+        name            : string
+        roles           : Role[] option
+        user            : User option
+        requireColons   : bool option
+        managed         : bool option
+        animated        : bool option
+    }
+
+type Reaction = {
+        count   : int
+        me      : bool
+        emoji   : Emoji
+    }
+
+type MessageActivityKind =
     | Join          = 1
     | Spectate      = 2
     | Listen        = 3
     | JoinRequest   = 5
 
-type MessageActivity = {Type : MessageActivityType; PartyId : string option}
-
-type MessageApplication = {
-        Id          : Snowflake;
-        CoverImage  : string;
-        Description : string;
-        Icon        : string;
-        Name        : string;
+type MessageActivity = {
+        [<JsonProperty "kind">]
+        kind : MessageActivityKind
+        partyId: string option
     }
 
-type MessageType = 
+type MessageApplication = {
+        id          : Snowflake
+        coverImage  : string
+        description : string
+        icon        : string
+        name        : string
+    }
+
+type MessageKind = 
     | Default               = 0
     | RecipientAdd          = 1
     | RecipientRemove       = 2
@@ -179,27 +258,50 @@ type MessageType =
     | GuildMemberJoin       = 7
 
 type Message = {
-        Id              : Snowflake;
+        id              : Snowflake
         [<JsonProperty "channel_id">]
-        ChannelId       : Snowflake;
-        Author          : User;
-        Content         : string;
-        Timestamp       : DateTime;
-        EditedTimestamp : DateTime option;
-        TTS             : bool;
-        MentionEveryone : bool;
-        Mentions        : list<User>;
-        MentionRoles    : list<Role>
-        Attachments     : list<Attachment>
-        Embeds          : list<Embed>
-        Reactions       : list<Reaction> option
-        Nounce          : Snowflake option;
-        Pinned          : bool;
-        WebhookId       : Snowflake option;
-        Type            : MessageType;
-        Activiy         : MessageActivity option;
-        Application     : MessageApplication option;
-    }
+        channelId       : Snowflake
+        author          : User
+        content         : string
+        timestamp       : DateTime
+        editedTimestamp : DateTime option
+        tts             : bool
+        mentionEveryone : bool
+        mentions        : User[]
+        mentionRoles    : Role[]
+        attachments     : Attachment[]
+        embeds          : Embed[]
+        reactions       : Reaction[] option
+        nonce           : Snowflake option
+        pinned          : bool
+        webhookId       : Snowflake option
+        kind            : MessageKind
+        activity        : MessageActivity option
+        application     : MessageApplication option
+    } with
+    static member Create author content =
+        {
+            id              = Snowflake.OfTime DateTime.Now
+            channelId       = 0UL
+            author          = author
+            content         = content
+            timestamp       = DateTime.Now
+            editedTimestamp = None
+            tts             = false
+            mentionEveryone = false
+            mentions        = [| |]
+            mentionRoles    = [| |]
+            attachments     = [| |]
+            embeds          = [| |]
+            reactions       = None
+            nonce           = None
+            pinned          = false
+            webhookId       = None
+            kind            = MessageKind.Default
+            activity        = None
+            application     = None
+        }
+        
 
 type ActivityType = 
     | Game      = 0
@@ -208,19 +310,20 @@ type ActivityType =
 
 type ActivityTimestamps = {Start : int option; End : int option}
 
-type ActivityParty = {Id : string option; Size : list<int> option}
+type ActivityParty = {Id : string option; Size : int[] option}
 
 type ActivityAssets = {
-        LargeImage  : string option;
-        LargeText   : string option;
-        SmallImage  : string option;
-        SmallText   : string option;
+        largeImage  : string option
+        largeText   : string option
+        smallImage  : string option
+        smallText   : string option
     }
 
 type ActivitySecrets = {
-        Join        : string option;
-        Spectate    : string option;
-        Match       : string option;
+        join        : string option
+        spectate    : string option
+        [<JsonProperty "match">]
+        match_      : string option
     }
 
 [<Flags>]
@@ -233,156 +336,163 @@ type ActivityFlags =
     | PLAY          = 0b0010_0000
 
 type Activity = {
-        Name            : string;
-        Type            : ActivityType;
-        URL             : string option;
-        Timestamps      : ActivityTimestamps option;
-        ApplicationId   : Snowflake option;
-        Details         : string option;
-        State           : string option;
-        Party           : ActivityParty option;
-        Assets          : ActivityAssets option;
-        Secrets         : ActivitySecrets option;
-        Instance        : bool option;
-        Flags           : int;
+        name            : string
+        [<JsonProperty "type">]
+        kind            : ActivityType
+        url             : string option
+        timestamps      : ActivityTimestamps option
+        applicationId   : Snowflake option
+        details         : string option
+        state           : string option
+        party           : ActivityParty option
+        assets          : ActivityAssets option
+        secrets         : ActivitySecrets option
+        instance        : bool option
+        flags           : int
     }
 
 type VoiceState = {
-        GuildId     : Snowflake option;
-        ChannelId   : Snowflake option;
-        UserId      : Snowflake;
-        SessionId   : string;
-        Deaf        : bool;
-        Mute        : bool;
-        SelfDeaf    : bool;
-        SelfMute    : bool;
-        Suppress    : bool;
+        guildId     : Snowflake option
+        channelId   : Snowflake option
+        userId      : Snowflake
+        sessionId   : string
+        deaf        : bool
+        mute        : bool
+        selfDeaf    : bool
+        selfMute    : bool
+        suppress    : bool
     }
 
 type PresenceUpdate = {
-        User    : User;
-        Roles   : list<Snowflake>;
-        Game    : Activity option;
-        GuildId : Snowflake;
-        Status  : string;
+        user    : User
+        roles   : Snowflake[]
+        game    : Activity option
+        guildId : Snowflake
+        status  : string
     }
 
 type GuildMember = {
-        User        : User;
-        Nick        : string option;
-        Roles       : list<Snowflake>;
-        JoinedAt    : DateTime;
-        Deaf        : bool;
-        Mute        : bool;
+        user        : User
+        nick        : string option
+        roles       : Snowflake[]
+        joinedAt    : DateTime
+        deaf        : bool
+        mute        : bool
     }
 
-type Guild =  {
-        Id                              : Snowflake;
-        Name                            : string;
-        Icon                            : string option;
-        Splash                          : string option;
-        Owner                           : bool option;
-        OwnerId                         : Snowflake;
-        Permissions                     : int option;
-        Region                          : string;
-        AFKChannelId                    : Snowflake option;
-        AFKTimeout                      : int;
-        EmbedEnabled                    : bool option;
-        EmbedChannelId                  : Snowflake option;
-        VerificationLevel               : int;
-        DefaultMessageNotifications     : int;
-        ExplicitContentFilter           : int;
-        Roles                           : list<Role>;
-        Emojis                          : list<Emoji>;
-        Features                        : list<string>;
-        MFALevel                        : int;
-        ApplicationId                   : Snowflake option;
-        WidgetEnabled                   : bool option;
-        WidgetChannelId                 : Snowflake option;
-        SystemChannelId                 : Snowflake option;
-        // Bellow are only sent with GUILD_CREATE Event
-        JoinedAt                        : DateTime option;
-        Large                           : bool option;
-        Unavailable                     : bool option;
-        MemberCount                     : int option;
-        VoiceStates                     : list<VoiceState> option;
-        Members                         : list<GuildMember> option;
-        Channels                        : list<Channel> option;
-        Presences                       : list<PresenceUpdate> option;
-    }
-
-//TODO: Should contain invite metadata
-type Invite = {
-        code                        : string;
-        guild                       : Guild option;
-        channel                     : Channel;
-        approximate_presence_count  : int option;
-        approximate_member_count    : int option;
+type Guild = {
+        id                              : Snowflake
+        name                            : string
+        icon                            : string option
+        splash                          : string option
+        owner                           : bool option
+        ownerId                         : Snowflake
+        permissions                     : int option
+        region                          : string
+        afkChannelId                    : Snowflake option
+        afkTimeout                      : int
+        embedEnabled                    : bool option
+        embedChannelId                  : Snowflake option
+        verificationLevel               : int
+        defaultMessageNotifications     : int
+        explicitContentFilter           : int
+        roles                           : Role[]
+        emojis                          : Emoji[]
+        features                        : string[]
+        mfaLevel                        : int
+        applicationId                   : Snowflake option
+        widgetEnabled                   : bool option
+        widgetChannelId                 : Snowflake option
+        systemChannelId                 : Snowflake option
+        // Below are only sent with GUILD_CREATE Event
+        joinedAt                        : DateTime option
+        large                           : bool option
+        unavailable                     : bool option
+        memberCount                     : int option
+        voiceStates                     : VoiceState[] option
+        members                         : GuildMember[] option
+        channels                        : Channel[] option
+        presences                       : PresenceUpdate[] option
     }
 
 type InviteMetadata = {
-        inviter     : User;
-        uses        : int;
-        max_uses    : int;
-        max_age     : int;
-        temporary   : bool;
-        created_at  : DateTime;
-        revoked     : bool;
+        inviter     : User
+        uses        : int
+        max_uses    : int
+        max_age     : int
+        temporary   : bool
+        created_at  : DateTime
+        revoked     : bool
+    }
+    
+type Invite = {
+        code                        : string
+        guild                       : Guild option
+        channel                     : Channel
+        approximate_presence_count  : int option
+        approximate_member_count    : int option
+        meta_data                   : InviteMetadata option
     }
 
 type WebModifyChannelParams = {
-        name                    : string;
-        position                : int;
-        topic                   : string;
-        nsfw                    : bool;
-        bitrate                 : int;
-        user_limit              : int;
-        permission_overwrites   : list<Overwrite>;
-        parent_id               : Snowflake;
+        name                    : string
+        position                : int
+        topic                   : string
+        nsfw                    : bool
+        bitrate                 : int
+        user_limit              : int
+        permission_overwrites   : Overwrite[]
+        parent_id               : Snowflake
     }
 
 type WebGetChannelMessagesParams = {
-        around  : Snowflake option;
-        before  : Snowflake option;
-        after   : Snowflake option;
-        limit   : int option;
+        around  : Snowflake option
+        before  : Snowflake option
+        after   : Snowflake option
+        limit   : int option
     }
 
+// https://discordapp.com/developers/docs/resources/channel#create-message
 type WebCreateMessageParams = {
-        content      : string;
-        nounce       : Snowflake option;
-        tts          : bool option;
-        file         : string option; //TODO: Api says type is "File contents"
-        embed        : Embed option;
-        payload_json : string option;
+        content      : string
+        nonce        : Snowflake option
+        tts          : bool option
+        file         : System.IO.Stream option
+        embed        : Embed option
+        payload_json : string option
     }
 
 type WebGetReactionsParams = {
-        before  : Snowflake option;
-        after   : Snowflake option;
-        limit   : int option;
-    }
+        before  : Snowflake option
+        after   : Snowflake option
+        limit   : int option
+    } with
+    static member Default = { before=None; after=None; limit=None }
 
 type WebEditMessageParams = {
-        content : string option;
-        embed   : Embed option;
-    }
+        content : string
+        embed   : Embed option
+    } with
+    static member OfContent s = { content=s; embed=None }
 
+        
 type WebEditChannelPermissionsParams = {
-        allow       : int;
-        deny        : int;
-        [<JsonProperty "type">]
-        editType    : string;
+        allow       : int
+        deny        : int
+        editType    : PermsTarget
     }
 
 type WebCreateChannelInviteParams = {
-        max_age     : int option;
-        max_uses    : int option;
-        temporary   : bool option;
-        unique      : bool option;
-    }
+        max_age     : int option
+        max_uses    : int option
+        temporary   : bool option
+        unique      : bool option
+    } with
+    static member Default =
+        { max_age=None; max_uses=None
+          temporary=Some true; unique=Some true }
 
 type WebGroupDMAddRecipientParams = {
-        access_token    : string;
-        nick            : string;
+        access_token    : string
+        nick            : string
     }

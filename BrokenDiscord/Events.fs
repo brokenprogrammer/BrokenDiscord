@@ -13,137 +13,137 @@ type ChannelPinsUpdateMessage = {
 
 type GuildDeleteMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "unavailable">]
-    Unavailable : bool;
+    unavailable : bool;
 }
 
 type GuildEmojisUpdateMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "emojis">]
-    Emojis : list<Emoji>
+    emojis : list<Emoji>
 }
 
 type GuildMemberRemoveMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "user">]
-    User : User
+    user : User
 }
 
 type GuildMemberUpdateMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "roles">]
-    Roles : list<Snowflake>;
+    roles : list<Snowflake>;
     [<JsonProperty "user">]
-    User : User
+    user : User
     [<JsonProperty "nick">]
-    Nick : string
+    nick : string
 }
 
 type GuildMembersChunkMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "members">]
-    Members : list<GuildMember>
+    members : list<GuildMember>
 }
 
 type GuildRoleCreateMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "role">]
-    Role : Role
+    role : Role
 }
 
 type GuildRoleUpdateMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "role">]
-    Role : Role
+    role : Role
 }
 
 type GuildRoleDeleteMessage = {
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "role_id">]
-    RoleId : Snowflake
+    roleId : Snowflake
 }
 
 type MessageDeleteMessage = {
     [<JsonProperty "id">]
-    Id : Snowflake;
+    id : Snowflake;
     [<JsonProperty "channel_id">]
-    ChannelId : Snowflake;
+    channelId : Snowflake;
 }
 
 type MessageDeleteBulkMessage = {
     [<JsonProperty "ids">]
-    Ids : list<Snowflake>;
+    ids : list<Snowflake>;
     [<JsonProperty "channel_id">]
-    ChannelId : Snowflake;
+    channelId : Snowflake;
 }
 
 type MessageReactionAddedMessage = {
     [<JsonProperty "user_id">]
-    UserId : Snowflake;
+    userId : Snowflake;
     [<JsonProperty "channel_id">]
-    ChannelId : Snowflake;
+    channelId : Snowflake;
     [<JsonProperty "message_id">]
-    MessageId : Snowflake;
+    messageId : Snowflake;
     [<JsonProperty "emoji">]
-    Emoji : Emoji;
+    emoji : Emoji;
 }
 
 type MessageReactionRemovedMessage = {
     [<JsonProperty "user_id">]
-    UserId : Snowflake;
+    userId : Snowflake;
     [<JsonProperty "channel_id">]
-    ChannelId : Snowflake;
+    channelId : Snowflake;
     [<JsonProperty "message_id">]
-    MessageId : Snowflake;
+    messageId : Snowflake;
     [<JsonProperty "emoji">]
-    Emoji : Emoji;
+    emoji : Emoji;
 }
 
 type MessageReactionClearedMessage = {
     [<JsonProperty "channel_id">]
-    ChannelId : Snowflake;
+    channelId : Snowflake;
     [<JsonProperty "message_id">]
-    MessageId : Snowflake;
+    messageId : Snowflake;
     
 }
 
 type PresenceUpdateMessage = {
     [<JsonProperty "user">]
-    User : User;
+    user : User;
     [<JsonProperty "roles">]
-    Roles : list<Snowflake>;
+    roles : list<Snowflake>;
     [<JsonProperty "game">]
-    Game : Activity;
+    game : Activity;
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "status">]
-    Status : string
+    status : string
 }
 
 type TypingStartMessage = {
     [<JsonProperty "channel_id">]
-    ChannelId : Snowflake;
+    channelId : Snowflake;
     [<JsonProperty "user_id">]
-    UserId : Snowflake;
+    userId : Snowflake;
     [<JsonProperty "timestamp">]
-    Timestamp : int
+    timestamp : int
 }
 
 type VoiceServerUpdateMessage = {
     [<JsonProperty "token">]
-    Token : string;
+    token : string;
     [<JsonProperty "guild_id">]
-    GuildId : Snowflake;
+    guildId : Snowflake;
     [<JsonProperty "endpoint">]
-    Endpoint : string;
+    endpoint : string;
 }
 
 type GatewayEvents =
