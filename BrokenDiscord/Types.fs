@@ -12,29 +12,24 @@ open Newtonsoft.Json
 // t = event name
 type Payload = {op : int; d : JObject; s : int option; t : string option}
 
-type Snowflake(v : uint64) =
-    member __.Value = v
-    static member Epoch = new DateTime(2015, 1, 1)
-    static member EpochLocal =
-        new DateTimeOffset(Snowflake.Epoch, TimeZoneInfo.Local.BaseUtcOffset)
+type Snowflake = uint64
+module Snowflake =
+    let Epoch = new DateTime(2015, 1, 1)
+    let EpochLocal = new DateTimeOffset(Epoch, TimeZoneInfo.Local.BaseUtcOffset)
 
-    member self.Timestamp =
-        v >>> 22 |> float
+    let TimeStamp (snowflake : Snowflake) = 
+        snowflake >>> 22 |> float
         |> TimeSpan.FromMilliseconds
-        |> (+) Snowflake.Epoch
-        
-    static member OfTime t =
-        (t - Snowflake.Epoch).TotalMilliseconds
+        |> (+) Epoch
+
+    let OfTime t : Snowflake =
+        (t - Epoch).TotalMilliseconds
         |> uint64
         <<< 22
-        |> Snowflake
-    
-    member x.WithTime t =
-        (Snowflake.OfTime t).Value
-        |> (|||) x.Value |> Snowflake
-    
-    override x.ToString () = string x.Value
-    
+
+    let WithTime snowflake t =
+        OfTime t
+        |> (|||) snowflake
 
 type PermsTarget =
     User | Role
@@ -287,7 +282,7 @@ type Message = {
     static member Create author content =
         {
             id              = Snowflake.OfTime DateTime.Now
-            channelId       = Snowflake 0UL
+            channelId       = 0UL
             author          = author
             content         = content
             timestamp       = DateTime.Now
