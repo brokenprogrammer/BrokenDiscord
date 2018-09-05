@@ -72,16 +72,16 @@ type Gateway () =
     
     let Send (packet : ISerializable) = 
         async {
-            printf "%s" ("Sending packet" + packet.Serialize())
+            // printf "%s" ("Sending packet" + packet.Serialize())
             do! WebSocket.sendMessageUTF8 (packet.Serialize()) socket
-            printf "%s" "Sent packet...\n"
+            // printf "%s" "Sent packet...\n"
         }
 
     let rec heartbeat (interval : int) =
         async {
             do! interval |> Task.Delay |> Async.AwaitTask |> Async.Ignore
             do! Send(HeartbeatPacket(interval)) |> Async.Ignore
-            printf "%s" "Sent Heartbeat packet\n"
+            // printf "%s" "Sent Heartbeat packet\n"
             do! heartbeat interval
         }
 
@@ -89,9 +89,9 @@ type Gateway () =
         let s = payload.s
         let t = payload.t.Value
 
-        printf "%s %s" "\nHandling DISPATCH " t
-        printf "%s" "\n"
-        printf "CONTENT: %s\n" (payload.d.ToString())
+        // printf "%s %s" "\nHandling DISPATCH " t
+        // printf "%s" "\n"
+        // printf "CONTENT: %s\n" (payload.d.ToString())
 
         let payloadData = payload.d
         let payloadJson = payloadData.ToString()
@@ -102,7 +102,7 @@ type Gateway () =
 
         //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
         //TODO: Verify that single Snowflake cases gets parsed from JSON correctly.
-        match t.ToUpper() with
+        match t with
         | "READY"                       -> gatewayEvent.Trigger(Ready(payload))
         | "RESUMED"                     -> gatewayEvent.Trigger(Resume(payload))
         | "CHANNEL_CREATE"              -> trigger ChannelCreate
@@ -155,7 +155,7 @@ type Gateway () =
         | OpCode.RequestGuildMembers -> 8 |> ignore
         | OpCode.InvalidSession -> 9 |> ignore
         | OpCode.Hello -> 
-            printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
+            // printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
             let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
             heartbeat(heartbeatInterval) |> Async.Start
         | OpCode.HeartbeatACK -> 11 |> ignore
@@ -163,7 +163,7 @@ type Gateway () =
 
     let Run (token : string) = 
         async {
-            printf "%s" "Connecting...\n"
+            // printf "%s" "Connecting...\n"
             
             do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
             
@@ -174,9 +174,9 @@ type Gateway () =
                 let! payload =  WebSocket.receieveMessageUTF8 socket
                 ofJson<Payload> payload |> parseMessage
 
-                printf "%s" "End of run loop \n"
+                // printf "%s" "End of run loop \n"
             
-            printf "%s" (socket.State.ToString())
+            // printf "%s" (socket.State.ToString())
         }
 
     // Test method that calls the Run function with the target websocket uri
