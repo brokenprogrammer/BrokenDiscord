@@ -55,7 +55,7 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
     
     member this.token = token
     member this.properties = getProperties
-    member this.compress = false //true TODO: Change this to true when zlib decryption has been added.
+    member this.compress = false //true TODO: Change this to true when zlib decompression has been added.
     member this.large_threshold = 250
     member this.shard =  [|shard; numshards|]
 
@@ -102,7 +102,7 @@ type Gateway () =
 
         //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
         //TODO: Verify that single Snowflake cases gets parsed from JSON correctly.
-        match t with
+        match t.ToUpper() with
         | "READY"                       -> gatewayEvent.Trigger(Ready(payload))
         | "RESUMED"                     -> gatewayEvent.Trigger(Resume(payload))
         | "CHANNEL_CREATE"              -> trigger ChannelCreate
