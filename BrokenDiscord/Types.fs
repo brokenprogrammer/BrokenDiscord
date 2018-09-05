@@ -33,6 +33,8 @@ type Snowflake(v : uint64) =
         (Snowflake.OfTime t).Value
         |> (|||) x.Value |> Snowflake
     
+    override x.ToString () = string x.Value
+    
 
 type PermsTarget =
     User | Role
