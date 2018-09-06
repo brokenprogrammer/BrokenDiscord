@@ -1,7 +1,7 @@
 ﻿module BrokenDiscord.Client
 
 open BrokenDiscord.Gateway
-open BrokenDiscord.Api
+open BrokenDiscord.RESTful
 open BrokenDiscord.Types
 open BrokenDiscord.Json
 open BrokenDiscord.Json.Json
@@ -9,12 +9,22 @@ open BrokenDiscord.Json.Json
 open System
 open Events
 open System.Net
+open HttpFs.Client
+open Hopac
+open Hopac.Infixes
+
+open FSharp.Control
+open Newtonsoft.Json.Linq
+
+let private channelEndpoint (id : Snowflake) = sprintf "/channels/%d" id
+let private historyEndpoint   = channelEndpoint >> (+) "/messages"
+let private messageEndpoint   = historyEndpoint >> sprintf "%s/%d"
+let private reactionsEndpoint =
+    messageEndpoint 
 
 type Client (token : string) =
     let token = token
-
     let gw = new Gateway()
-    let api = new Api(token)
     
     let mutable Sessionid = 0
 
@@ -27,75 +37,86 @@ type Client (token : string) =
     member this.login() = token |> gw.connect |> Async.RunSynchronously
 
     /// Get a channel by ID. Returns a channel object.
-    member this.GetChannel (channelid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}", channelid)
-        api.GET<Channel>(endpoint) |> Async.RunSynchronously 
+
+    member this.GetChannel (chid : Snowflake) = 
+        restGet<unit,Channel> token <| channelEndpoint chid <| None
     
     /// Update a channels settings. Returns a channel on success, 
     /// and a 400 BAD REQUEST on invalid parameters.
-    member this.ModifyChannel (channelid : Snowflake, jsonParams : WebModifyChannelParams) = 
-        let endpoint = String.Format("/channels/{0}", channelid)
-        let json = jsonParams |> toJson
-        api.PUT<Channel>(endpoint, json) |> Async.RunSynchronously
+    member this.EditChannel (args : WebModifyChannelParams) (chid:Snowflake) =
+        restPatch<WebModifyChannelParams, Channel> token
+        <| channelEndpoint chid <| Some args
 
     /// Delete a channel, or close a private message.
     /// Returns a channel object on success.
-    member this.DeleteChannel (channelid : Snowflake) =
-        let endpoint = String.Format("/channels/{0}", channelid)
-        api.DELETE<Channel>(endpoint) |> Async.RunSynchronously
+    member this.DeleteChannel (chid : Snowflake) =
+        restDelete<unit,Channel> token <| channelEndpoint chid <| None
 
     /// Returns the messages for a channel.
     /// Returns an array of message objects on success.
-    member this.GetChannelMessages (channelid : Snowflake, jsonParams : WebGetChannelMessagesParams) =
-        //TODO: Query parameters.
-        let endpoint = String.Format("/channels/{0}/messages", channelid)
-        let json = jsonParams |> toJson
-        api.GET<list<Message>>(endpoint) |> Async.RunSynchronously
+    member this.GetChannelMessages (args : HistoryParams) (chid : Snowflake) =
+        let retrieve =
+            restGet<WebGetChannelMessagesParams, Message[]> token <| historyEndpoint chid
+        asyncSeq {
+            let! payload = retrieve (Some args.Payload) |> Job.toAsync
+            let payload =
+                match payload with
+                | Ok x -> x
+                | Error err -> raise <| ApiException err
+            yield! AsyncSeq.ofSeq payload
+            let remaining = 
+                if args.limit > 100 then args.limit-100
+                else 0
+            if remaining > 0 then
+                yield!
+                    this.GetChannelMessages
+                    <| args.ScrollBy remaining (Array.last payload).id
+                    <| chid 
+            }
 
     /// Returns a specific message in the channel. 
     /// Returns a message object on success.
-    member this.GetChannelMessage (channelid : Snowflake, messageid : Snowflake) =
-        let endpoint = String.Format("/channels/{0}/messages/{1}", channelid, messageid)
-        api.GET<Message>(endpoint) |> Async.RunSynchronously
+    member this.GetChannelMessage (chid : Snowflake) (mgid : Snowflake) =
+        restGet<unit,Message> token <| messageEndpoint chid mgid <| None
     
     /// Post a message to a guild text or DM channel.
-    member this.CreateMessage (channelid : Snowflake, message : WebCreateMessageParams) =
+    member this.CreateMessage (chid : Snowflake) (mgid : Snowflake) (args : MessageCreate) =
         //TODO: Might have to be restructured to work with uploading files.
-        let endpoint = String.Format("/channels/{0}/messages", channelid)
-        let json = message |> toJson
-        api.POST<Message>(endpoint, json) |> Async.RunSynchronously
+        let unwrap = function Some x -> [x] | None -> []
+        let body =
+            let rc = 
+                args.richContent
+                |> Option.map
+                    (fun rc -> NameValue(
+                                "payload_json",
+                                toJson <| JProperty("embed", toJson rc)))
+            match args.richContent with
+            | Some rc ->
+                [ for f in rc.files do
+                    yield FormData.FormFile("file", File(f.name, f.mime, StreamData f.content)) ]
+            | None -> []
+            |> List.append
+                <| List.concat [
+                    unwrap rc
+                    args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
+                    args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
+         
+        httpForm<Message> token Post
+        <| messageEndpoint chid mgid
+        <| body
 
     /// Create a reaction for the message. 
-    member this.CreateReaction (channelid : Snowflake, messageid : Snowflake, emoji : Emoji) = 
-        let emojiVal = match emoji.id with
-                    | Some id -> "" + (string id) + ":" + emoji.name
-                    | None -> emoji.name
-
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions/{2}/@me", channelid, messageid, emojiVal)
-        api.PUT(endpoint, "") |> Async.RunSynchronously |> ignore
+    member this.CreateReaction (chid : Snowflake) (mgid: Snowflake) (emote : Emoji) = 
     
     /// Delete a reaction the current user has made for the message.
-    member this.DeleteOwnReaction (channelid : Snowflake, messageid : Snowflake, emoji : Emoji) = 
-        let emojiVal = match emoji.id with
-                    | Some id -> "" + (string id) + ":" + emoji.name
-                    | None -> emoji.name
-
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions/{2}/@me", channelid, messageid, emojiVal)
-        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
-    
+    member this.DeleteOwnReaction (channelid : Snowflake, messageid : Snowflake, emoji : Emoji) =
+   
     /// Deletes another user's reaction. 
     member this.DeleteUserReaction (channelid : Snowflake, messageid : Snowflake, emoji : Emoji, userid : Snowflake) =
-        let emojiVal = match emoji.id with
-                    | Some id -> "" + (string id) + ":" + emoji.name
-                    | None -> emoji.name
-
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions/{2}/{3}", channelid, messageid, emojiVal, userid)
-        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
 
     /// Get a list of users that reacted with this emoji. 
     /// Returns an array of user objects on success.
     member this.GetReactions (channelid : Snowflake, messageid : Snowflake, emoji : Emoji, jsonParams : WebGetReactionsParams) =
-        //TODO: Query params
         let emojiVal = match emoji.id with
                     | Some id -> "" + (string id) + ":" + emoji.name
                     | None -> emoji.name

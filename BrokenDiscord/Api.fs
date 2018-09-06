@@ -1,69 +1,54 @@
-﻿module BrokenDiscord.Api
+﻿module BrokenDiscord.RESTful
 
 open System
-open System.Net
-open System.Net.Http
-open System.Net.Http.Headers
-open System.Text
+open FSharpPlus
 
 open BrokenDiscord.Types
 open BrokenDiscord.Json.Json
+open Newtonsoft.Json
 
-let setHeaders (client : HttpClient) (token : string) (userAgent : string) = 
-    client.DefaultRequestHeaders.Add("Authorization", String.Format("Bot {0}", token))
-    client.DefaultRequestHeaders.Add("User-Agent", userAgent)
+open Hopac
+open Hopac.Infixes
+open HttpFs.Client
+    
+let private userAgent =
+    sprintf "DiscordBot (%s, %s)"
+    <| "https://github.com/brokenprogrammer/BrokenDiscord"
+    <| "6"
 
-type Api (token : string) =
-    let baseURL = "https://discordapp.com/api"
-    let userAgent =
-        sprintf "DiscordBot (%s, %s)"
-        <| "https://github.com/brokenprogrammer/BrokenDiscord"
-        <| "6"
-    let token = token
-    
-    let client : HttpClient = new HttpClient()
-    do setHeaders client token userAgent
 
-    member this.GET<'T> (path : string) =
-        async {
-            let! res = client.GetAsync(baseURL + path) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
-        }
+let private setHeaders token req =
+    req
+    |> Request.setHeader (Authorization (sprintf "Bot %s" token))
+    |> Request.setHeader (UserAgent userAgent)
+
+let private basePath = sprintf "https://discordapp.com/api/%s"
+
+let parseRsp<'t> r = job {
+        let! s = Response.readBodyAsString r
+        return
+            try Ok <| ofJson<'t> s
+            with :? JsonException ->
+                Error (ofJson<ApiError> s)
+    }
     
-    member this.POST<'T> (path : string, content : string) =
-        async {
-            let! res = client.PostAsync((baseURL + path), StringContent(content, Encoding.UTF8, "application/json")) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
-        }
-    
-    member this.PUT<'T> (path : string, content : string) =
-        async {
-            let! res = client.PutAsync((baseURL + path), StringContent(content, Encoding.UTF8, "application/json")) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
-        }
-    
-    member this.DELETE<'T> (path : string) =
-        async {
-            let! res = client.DeleteAsync(baseURL + path) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
-        }
-    
-    interface System.IDisposable with
-        member this.Dispose () =
-            client.Dispose()
+let http<'i, 'o> token method path (body : 'i option) =
+    Request.createUrl method <| basePath path
+    |> setHeaders token
+    |> (match body with 
+            | Some x -> Request.bodyString (toJson x)
+            | _ when typeof<'i> = typeof<unit> -> id
+            | None -> id)
+    |> getResponse >>= parseRsp<'o>
+
+let httpForm<'t> token method path (data : FormData list) =
+    Request.createUrl method <| basePath path
+    |> setHeaders token
+    |> Request.body (RequestBody.BodyForm data)
+    |> getResponse >>= parseRsp<'t>
+                
+let restGet<'i, 'o>    = http<'i, 'o> /> Get
+let restDelete<'i, 'o> = http<'i, 'o> /> Delete
+let restPost<'i, 'o>   = http<'i, 'o> /> Post
+let restPut<'i, 'o>    = http<'i, 'o> /> Put
+let restPatch<'i, 'o>  = http<'i, 'o> /> Patch
