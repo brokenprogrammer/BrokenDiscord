@@ -579,3 +579,8 @@ type ApiError =
     { code : uint32; message : string }
     
 exception ApiException of ApiError
+
+type USpec = Me | Uid of Snowflake
+    with
+    override x.ToString () =
+        match x with Me -> "@me" | Uid x -> (string x)
