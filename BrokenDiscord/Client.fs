@@ -44,11 +44,18 @@ let private emoteReactionsEndpoint chid mgid (e : Emoji) =
 let private userReactionsEndpoint chid mgid e (u : USpec) =
     emoteReactionsEndpoint chid mgid e + sprintf "/%s" (string u)
 
+let private guildEndpoint (guid : Snowflake option) = 
+    match guid with
+    | Some x -> sprintf "/guilds/%d" x
+    | None -> "/guilds"
+
 let private userEndpoint (u : USpec) = sprintf "/users/%s" (string u)
 let private userDMEndpoint = userEndpoint >> (+) /> "/channels"
 let private userConnectionEndpoint = userEndpoint >> (+) /> "/connections"
 let private userGuildEndpoint = userEndpoint >> (+) /> "/guilds" 
 let private userGuildIdEndpoint guid = userGuildEndpoint >> (+) /> sprintf "/%d" guid
+
+let private voiceRegionsEndpoint = "/voice/regions"
 
 type Client (token : string) =
     let token = token
@@ -209,6 +216,26 @@ type Client (token : string) =
     /// Removes a recipient from a Group DM.
     member this.GroupDMRemoveRecipient chid mgid =
         restDelThunk<unit> token <| channelRoutingEndpoint chid mgid <| None
+    
+    ///Create a new guild. Returns a guild object on success. Fires a Guild Create Gateway event.
+    member this.CreateGuild (args : CreateGuild) =
+        restGetCall<_,Guild> token <| guildEndpoint None <| Some args
+
+    /// Returns the guild object for the given id.
+    member this.GetGuild guid =
+        restGetCall<unit,Guild> token <| guildEndpoint (Some guid) <| None
+
+    /// Modify a guild's settings. Requires the 'MANAGE_GUILD' permission. 
+    /// Returns the updated guild object on success. Fires a Guild Update Gateway event.
+    member this.ModifyGuild guid (args : ModifyGuild) =
+        restPatchCall<_,Guild> token <| guildEndpoint (Some guid) <| Some args
+
+    /// Delete a guild permanently. User must be owner. 
+    /// Returns 204 No Content on success. Fires a Guild Delete Gateway event.
+    member this.DeleteGuild guid =
+        restDelThunk<unit> token <| guildEndpoint (Some guid) <| None
+
+    
 
     /// Returns the user object of the requester's account.
     member this.GetCurrentUser =
@@ -249,6 +276,10 @@ type Client (token : string) =
     /// Requires the connections OAuth2 scope.
     member this.GetUserConnections =
         restGetCall<unit,Connection[]> <| token <| userConnectionEndpoint Me <| None
+    
+    /// Returns an array of voice region objects that can be used when creating servers.
+    member this.ListVoiceRegions = 
+        restGetCall<unit,VoiceRegion[]> <| token <| voiceRegionsEndpoint <| None
 
     interface System.IDisposable with
         member this.Dispose () =

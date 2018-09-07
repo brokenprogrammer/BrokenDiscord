@@ -387,6 +387,15 @@ type VoiceState = {
         suppress    : bool
     }
 
+type VoiceRegion = {
+        id          : string
+        name        : string
+        vip         : bool
+        optimal     : bool
+        deprecated  : bool
+        custom      : bool
+}
+
 type PresenceUpdate = {
         user    : User
         roles   : Snowflake[]
@@ -437,6 +446,31 @@ type Guild = {
         members                         : GuildMember[] option
         channels                        : Channel[] option
         presences                       : PresenceUpdate[] option
+    }
+
+type CreateGuild = {
+        name                            : string
+        region                          : string
+        icon                            : string
+        verification_level              : int
+        default_message_notifications   : int
+        explicit_content_filter         : int
+        roles                           : Role[]
+        channels                        : Channel[]
+    }
+
+type ModifyGuild = {
+        name                            : string
+        region                          : string
+        verification_level              : int
+        default_message_notifications   : int
+        explicit_content_filter         : int
+        afk_channel_id                  : Snowflake
+        afk_timeout                     : int
+        icon                            : string
+        owner_id                        : Snowflake
+        splash                          : string
+        system_channel_id               : Snowflake
     }
 
 type InviteMetadata = {
