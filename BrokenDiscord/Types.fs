@@ -217,7 +217,12 @@ type Emoji = {
         requireColons   : bool option
         managed         : bool option
         animated        : bool option
-    }
+    } with
+    static member Empty = 
+        {id = None; name = ""; roles = None; user = None; requireColons = None; managed = None; animated = None;}
+    static member CreateOfUnicode unicode = { Emoji.Empty with name=unicode}
+    static member CreateOfNameId name id = {Emoji.Empty with id = id; name = name}
+    static member CreateAnimated name id animated = {Emoji.Empty with id = id; name = name; animated = animated}
 
 type Reaction = {
         count   : int

@@ -39,8 +39,7 @@ let private msgReactionsEndpoint mgid chid = messageEndpoint mgid chid + "/react
 let private emoteReactionsEndpoint chid mgid (e : Emoji) =
     msgReactionsEndpoint chid mgid
     + (sprintf "/%s"
-        <| Option.defaultValue e.name (Option.map string e.id))
-    |> uesc
+        <| Option.defaultValue e.name (Option.map string e.id) |> uesc)
         
 let private userReactionsEndpoint chid mgid e (u : USpec) =
     emoteReactionsEndpoint chid mgid e + sprintf "/%s" (string u)
@@ -103,7 +102,7 @@ type Client (token : string) =
         restGetCall<unit,Message> token <| messageEndpoint chid mgid <| None
     
     /// Post a message to a guild text or DM channel.
-    member this.CreateMessage (chid : Snowflake) (mgid : Snowflake) (args : MessageCreate) =
+    member this.CreateMessage (chid : Snowflake) (args : MessageCreate) =
         //TODO: Might have to be restructured to work with uploading files.
         let unwrap = function Some x -> [x] | None -> []
         let body =
@@ -120,17 +119,18 @@ type Client (token : string) =
             | None -> []
             |> List.append
                 <| List.concat [
+                    [NameValue("content", args.content)]
                     unwrap rc
                     args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
                     args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
          
         restForm<Message> token Post
-        <| channelEndpoint chid
+        <| historyEndpoint chid
         <| body
 
     /// Create a reaction for the message. 
     member this.CreateReaction chid mgid emote =
-        restPostThunk<unit> token <| userReactionsEndpoint chid mgid emote Me
+        restPutThunk<unit> token <| userReactionsEndpoint chid mgid emote Me <| None
         
     /// Deletes another user's reaction. 
     member this.DeleteUserReaction chid mgid uid emote =
@@ -152,7 +152,7 @@ type Client (token : string) =
     /// Edit a previously sent message.
     /// Returns a message object
     member this.EditMessage chid mgid (args : WebEditMessageParams) =
-        restPutCall<_,Message> token <| messageEndpoint chid mgid <| Some args
+        restPatchCall<_,Message> token <| messageEndpoint chid mgid <| Some args
 
     /// Delete a message.
     member this.DeleteMessage chid mgid = 
