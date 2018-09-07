@@ -27,5 +27,7 @@ let main _argv =
     |> Event.choose (function MessageCreate e -> Some e | _ -> None)
     |> Event.add pong
     printfn "Listening for pings..."
-    client.subscribe () |> Async.RunSynchronously
+    client.subscribe () |> Async.StartAsTask |> ignore
+    printfn "Press enter to quit"
+    stdin.ReadLine () |> ignore
     0
