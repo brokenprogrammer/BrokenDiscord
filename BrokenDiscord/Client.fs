@@ -10,6 +10,8 @@ open System
 open Events
 open System.Net
 open HttpFs.Client
+open Chessie.ErrorHandling
+open Chessie.ErrorHandling.Trial
 open Hopac
 open Hopac.Infixes
 
@@ -113,11 +115,7 @@ type Client (token : string) =
         let retrieve =
             restGetCall<WebGetChannelMessagesParams, Message[]> token <| historyEndpoint chid
         asyncSeq {
-            let! payload = retrieve (Some args.Payload) |> Job.toAsync
-            let payload =
-                match payload with
-                | Ok x -> x
-                | Error err -> raise <| ApiException err
+            let! payload = retrieve (Some args.Payload) >>- returnOrFail |> Job.toAsync
             yield! AsyncSeq.ofSeq payload
             let remaining = 
                 if args.limit > 100 then args.limit-100
