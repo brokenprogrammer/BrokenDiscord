@@ -91,6 +91,14 @@ type User = {
         email           : string option
     }
 
+type Prune = {
+        pruned : int
+    }
+
+type PruneQueryParams = {
+        days : int
+    }
+
 type Ban = {
         reson : string option
         user  : User
@@ -122,6 +130,18 @@ type Integration = {
         synced_at           : DateTime
     }
 
+type CreateIntegration = {
+        [<JsonProperty "type">]
+        kind : string
+        id   : Snowflake
+    }
+
+type ModifyIntegration = {
+        expire_behavior     : int
+        expire_grace_period : int
+        enable_emoticons    : bool
+    }
+
 type Connection = {
         id           : string
         name         : string
@@ -139,6 +159,22 @@ type Role = {
         position    : int
         permissions : int
         managed     : bool
+        mentionable : bool
+    }
+
+type CreateRole = {
+        name        : string option
+        permission  : int option
+        color       : int option
+        hoist       : bool option
+        mentionable : bool option
+    }
+
+type ModifyRole = {
+        name        : string
+        permissions : int
+        color       : int
+        hoist       : bool
         mentionable : bool
     }
 
@@ -424,6 +460,11 @@ type GuildMember = {
         mute        : bool
     }
 
+type GuildEmbed = {
+        enabled     : bool
+        channel_id  : Snowflake option
+    }
+
 type Guild = {
         id                              : Snowflake
         name                            : string
@@ -496,10 +537,11 @@ type CreateGuildChannel = {
         nsfw                    : bool
     }
 
-type ModifyGuildChannelPosition = {
+type ModifyPosition = {
         id          : Snowflake
         position    : int
     }
+
 
 type GuildMembersList = {
         limit : int

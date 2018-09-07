@@ -51,13 +51,20 @@ let private guildEndpoint (guid : Snowflake option) : string =
 let private guildChannelEndpoint = guildEndpoint >> (+) /> "/channels"
 let private guildListMemberEndpoint = guildEndpoint >> (+) /> "/members"
 let private guildBansEndpoint = guildEndpoint >> (+) /> "/bans"
+let private guildPruneEndpoint = guildEndpoint >> (+) /> "/prune"
+let private guildVanityURLEndpoint = guildEndpoint >> (+) /> "/vanity-url"
+let private guildRegionsEndpoint = guildEndpoint >> (+) /> "/regions"
+let private guildInviteEndpoint = guildEndpoint >> (+) /> "/invites"
+let private guildEmbedEndpoint = guildEndpoint >> (+) /> "/embed"
+let private guildIntegrationsEndpoint = guildEndpoint >> (+) /> "/integrations"
+let private guildIntegrationEndpoint = guildIntegrationsEndpoint >> sprintf "%s/%d"
+let private guildSyncIntegrationEndpoint intid = 
+    guildIntegrationEndpoint intid >> (+) /> "/sync" 
+let private guildRolesEndpoint = guildEndpoint >> (+) /> "/roles"
+let private guildRoleEndpoint = guildRolesEndpoint >> sprintf "%s/%d"
 let private guildBanEndpoint = guildBansEndpoint >> sprintf "%s/%d"
 let private guildMemberEndpoint = guildListMemberEndpoint >> sprintf "%s/%d" 
-
-//let private guildRolesEndpoint guid uid = (guildMemberEndpoint (Some guid) uid) + "/roles"
-let private guildRolesEndpoint uid = guildMemberEndpoint uid >> (+) /> "/roles"
-let private guildMemberRolesEndpoint uid = guildRolesEndpoint uid >> sprintf "%s/%d"
-//let private guildMemberRolesEndpoint = guildRolesEndpoint >> (+) /> sprintf "%d"
+let private guildMemberRolesEndpoint uid = guildMemberEndpoint uid >> sprintf "%s/roles/%d"
 
 let private guildModifyCurrentNickEndpoint guid (u: USpec) = 
     sprintf "%s/%s/nick" (guildListMemberEndpoint guid) (string u)
@@ -257,7 +264,7 @@ type Client (token : string) =
 
     /// Modify the positions of a set of channel objects for the guild. 
     /// Returns a 204 empty response on success. 
-    member this.ModifyGuildChannelPositions guid (args : ModifyGuildChannelPosition) =
+    member this.ModifyGuildChannelPositions guid (args : ModifyPosition) =
         restPatchThunk token <| guildChannelEndpoint (Some guid) <| Some args
     
     /// Returns a guild member object for the specified user.
@@ -317,7 +324,87 @@ type Client (token : string) =
     /// Returns a 204 empty response on success. 
     member this.RemoveGuildBan guid uid =
         restDelThunk token <| guildBanEndpoint (Some guid) uid <| None
+        
+    // Returns a list of role objects for the guild.
+    member this.GetGuildRoles guid =
+        restGetCall<unit,Role[]> token <| guildRolesEndpoint (Some guid) <| None
     
+    /// Create a new role for the guild. Requires the 'MANAGE_ROLES' permission. 
+    /// Returns the new role object on success. 
+    member this.CreateGuildRole guid (args : CreateRole) =
+        restPostCall<_,Role> token <| guildRolesEndpoint (Some guid) <| Some args
+    
+    /// Modify the positions of a set of role objects for the guild.
+    /// Returns a list of all of the guild's role objects on success.
+    member this.ModifyGuildRolePositions guid (args : ModifyPosition) =
+        restPatchCall<_,Role[]> token <| guildRolesEndpoint (Some guid) <| Some args
+    
+    /// Modify a guild role. Requires the 'MANAGE_ROLES' permission. 
+    /// Returns the updated role on success. 
+    member this.ModifyGuildRole guid (rid : Snowflake) (args : ModifyRole) =
+        restPatchCall<_,Role> token <| guildRoleEndpoint (Some guid) rid <| Some args
+
+    /// Delete a guild role. Requires the 'MANAGE_ROLES' permission. 
+    /// Returns a 204 empty response on success.
+    member this.DeleteGuildRole guid rid = 
+        restDelThunk token <| guildRoleEndpoint (Some guid) rid <| None
+
+    /// Returns an object with one 'pruned' key indicating the number of 
+    /// members that would be removed in a prune operation. 
+    member this.GetPruneCount guid (args : PruneQueryParams) = 
+        restGetCall<_,Prune> token <| guildPruneEndpoint (Some guid) <| Some args
+
+    /// Begin a prune operation.
+    /// Returns an object with one 'pruned' key indicating the number 
+    /// of members that were removed in the prune operation. 
+    member this.BeginGuildPrune guid (args : PruneQueryParams) =
+        restPostCall<_,Prune> token <| guildPruneEndpoint (Some guid) <| Some args
+
+    /// Returns a list of voice region objects for the guild.
+    member this.GetGuildVoiceRegions guid = 
+        restGetCall<unit,VoiceRegion> token <| guildRegionsEndpoint (Some guid) <| None
+
+    /// Returns a list of invite objects (with invite metadata) for the guild. 
+    member this.GetGuildInvites guid = 
+        restGetCall<unit,Invite> token <| guildInviteEndpoint (Some guid) <| None
+
+    /// Returns a list of integration objects for the guild. 
+    member this.GetGuildIntegrations guid = 
+        restGetCall<unit,Invite> token <| guildIntegrationsEndpoint (Some guid) <| None
+    
+    /// Attach an integration object from the current user to the guild. 
+    /// Returns a 204 empty response on success. 
+    member this.CreateGuildIntegration guid (args : CreateIntegration) = 
+        restPostThunk token <| guildIntegrationsEndpoint (Some guid) <| Some args
+
+    /// Modify the behavior and settings of a integration object for the guild. 
+    /// Returns a 204 empty response on success.
+    member this.ModifyGuildIntegration guid (intid : Snowflake) (args : ModifyIntegration) =
+        restPatchThunk token <| guildIntegrationEndpoint (Some guid) intid <| Some args
+
+    /// Delete the attached integration object for the guild. 
+    /// Returns a 204 empty response on success. 
+    member this.DeleteGuildIntegration guid intid =
+        restDelThunk token <| guildIntegrationEndpoint (Some guid) intid <| None
+
+    /// Sync an integration. 
+    /// Returns a 204 empty response on success.
+    member this.SyncGuildIntegration guid intid =
+        restPostThunk token <| guildSyncIntegrationEndpoint (Some guid) intid <| None
+
+    /// Returns the guild embed object.
+    member this.GetGuildEmbed guid =
+        restGetCall<unit,GuildEmbed> token <| guildEmbedEndpoint (Some guid) <| None
+
+    /// Modify a guild embed object for the guild. All attributes may be passed in with JSON and modified. 
+    /// Returns the updated guild embed object.
+    member this.ModifyGuildEmbed guid (args : GuildEmbed) =
+        restPatchCall<_,GuildEmbed> token <| guildEmbedEndpoint (Some guid) <| Some args
+
+    /// Returns a partial invite object for guilds with that feature enabled.
+    member this.GetGuildVanityURL guid =
+        restGetCall<unit,Invite> token <| guildVanityURLEndpoint (Some guid) <| None
+
     /// Returns the user object of the requester's account.
     member this.GetCurrentUser =
         restGetCall<unit,User> token <| userEndpoint Me <| None
