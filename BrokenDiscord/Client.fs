@@ -52,12 +52,12 @@ type Client (token : string) =
     let mutable Sessionid = 0
 
     member val GatewayVersion = 0 with get, set
-    member val PrivateChannels = [] with get, set
-    member val Guilds = [] with get,set
+    member val PrivateChannels = [| |] with get, set
+    member val Guilds = [| |] with get,set
     
     member val Events = gw.GatewayEvent
     
-    member this.login() = token |> gw.connect |> Async.RunSynchronously
+    member this.subscribe () = gw.connect token
 
     /// Get a channel by ID. Returns a channel object.
 
@@ -103,7 +103,7 @@ type Client (token : string) =
         restGetCall<unit,Message> token <| messageEndpoint chid mgid <| None
     
     /// Post a message to a guild text or DM channel.
-    member this.CreateMessage (chid : Snowflake) (mgid : Snowflake) (args : MessageCreate) =
+    member this.CreateMessage (chid : Snowflake) (mgid : Snowflake) (args : MessageCreate.T) =
         //TODO: Might have to be restructured to work with uploading files.
         let unwrap = function Some x -> [x] | None -> []
         let body =
