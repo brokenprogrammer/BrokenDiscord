@@ -7,6 +7,10 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BrokenDiscord", "BrokenDisc
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BrokenDiscord.Test", "BrokenDiscord.Test\BrokenDiscord.Test.fsproj", "{8A0318E6-F22C-4FB2-B0B5-3C2B31656E28}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BrokenDiscord.Examples", "BrokenDiscord.Examples", "{CD0DDF16-4B4A-476B-BE49-82FEAD7DCE39}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Ping", "BrokenDiscord.Examples\Ping\Ping.fsproj", "{BFD393E7-3153-40EB-AD1A-60135BBC4B2A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,11 +25,18 @@ Global
 		{8A0318E6-F22C-4FB2-B0B5-3C2B31656E28}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A0318E6-F22C-4FB2-B0B5-3C2B31656E28}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A0318E6-F22C-4FB2-B0B5-3C2B31656E28}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BFD393E7-3153-40EB-AD1A-60135BBC4B2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BFD393E7-3153-40EB-AD1A-60135BBC4B2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BFD393E7-3153-40EB-AD1A-60135BBC4B2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BFD393E7-3153-40EB-AD1A-60135BBC4B2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {2F15C59B-2B6A-4BC7-95D9-2A57E2F6C615}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{BFD393E7-3153-40EB-AD1A-60135BBC4B2A} = {CD0DDF16-4B4A-476B-BE49-82FEAD7DCE39}
 	EndGlobalSection
 EndGlobal
