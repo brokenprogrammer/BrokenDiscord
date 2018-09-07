@@ -44,6 +44,12 @@ let private emoteReactionsEndpoint chid mgid (e : Emoji) =
 let private userReactionsEndpoint chid mgid e (u : USpec) =
     emoteReactionsEndpoint chid mgid e + sprintf "/%s" (string u)
 
+let private userEndpoint (u : USpec) = sprintf "/users/%s" (string u)
+let private userDMEndpoint = userEndpoint >> (+) /> "/channels"
+let private userConnectionEndpoint = userEndpoint >> (+) /> "/connections"
+let private userGuildEndpoint = userEndpoint >> (+) /> "/guilds" 
+let private userGuildIdEndpoint guid = userGuildEndpoint >> (+) /> sprintf "/%d" guid
+
 type Client (token : string) =
     let token = token
     let gw = new Gateway()
@@ -203,6 +209,46 @@ type Client (token : string) =
     /// Removes a recipient from a Group DM.
     member this.GroupDMRemoveRecipient chid mgid =
         restDelThunk<unit> token <| channelRoutingEndpoint chid mgid <| None
+
+    /// Returns the user object of the requester's account.
+    member this.GetCurrentUser =
+        restGetCall<unit,User> token <| userEndpoint Me <| None
+    
+    /// Returns a user object for a given user ID.
+    member this.GetUser uid =
+        restGetCall<unit,User> token <| userEndpoint (Uid uid) <| None
+
+    /// Modify the requester's user account settings. Returns a user object on success.
+    member this.ModifyCurrentUser (args : WebModifyCurrentUserParams) =
+        restPatchCall<_,User> <| token <| userEndpoint Me <| Some args
+    
+    /// Returns a list of partial guild objects the current user is a member of. 
+    /// Requires the guilds OAuth2 scope.
+    member this.GetCurrentUserGuilds (args : WebGetCurrentUserGuildParams option) =
+        restGetCall<_,Guild> <| token <| userGuildEndpoint Me <| args
+    
+    /// Leaves the guild with the given ID.
+    member this.LeaveGuild (guid : Snowflake) =
+        restDelThunk<unit> <| token <| userGuildIdEndpoint guid Me <| None
+    
+    /// Returns a list of DM channel objects. For bots, this is no longer a 
+    /// supported method of getting recent DMs, and will return an empty array.
+    member this.GetUserDMs =
+        restGetCall<unit,Channel[]> <| token <| userDMEndpoint Me <| None
+
+    /// Create a new DM channel with a user. Returns a DM channel object.
+    member this.CreateDM (args : WebCreateDMParams) =
+        restPostCall<_,Channel> <| token <| userDMEndpoint Me <| Some args
+    
+    /// Create a new group DM channel with multiple users. Returns a DM channel object.
+    /// Note: This endpoint is limited to 10 active group DMs.
+    member this.CreateGroupDM (args : WebCreateGroupDMParams) =
+        restPostCall<_,Channel> <| token <| userDMEndpoint Me <| Some args
+    
+    /// Returns a list of connection objects. 
+    /// Requires the connections OAuth2 scope.
+    member this.GetUserConnections =
+        restGetCall<unit,Connection[]> <| token <| userConnectionEndpoint Me <| None
 
     interface System.IDisposable with
         member this.Dispose () =
