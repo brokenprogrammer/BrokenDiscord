@@ -69,6 +69,8 @@ let private guildMemberRolesEndpoint uid = guildMemberEndpoint uid >> sprintf "%
 let private guildModifyCurrentNickEndpoint guid (u: USpec) = 
     sprintf "%s/%s/nick" (guildListMemberEndpoint guid) (string u)
 
+let private invitesEndpoint invcode = sprintf "/invites/%d" invcode
+
 let private userEndpoint (u : USpec) = sprintf "/users/%s" (string u)
 let private userDMEndpoint = userEndpoint >> (+) /> "/channels"
 let private userConnectionEndpoint = userEndpoint >> (+) /> "/connections"
@@ -76,6 +78,15 @@ let private userGuildEndpoint = userEndpoint >> (+) /> "/guilds"
 let private userGuildIdEndpoint guid = userGuildEndpoint >> (+) /> sprintf "/%d" guid
 
 let private voiceRegionsEndpoint = "/voice/regions"
+
+let private webhookEndpoint : (Snowflake->_) = sprintf "/webhooks/%d"
+let private webhookTokenEndpoint = webhookEndpoint >> sprintf "%s/%s"
+let private channelWebhookEndpoint = channelEndpoint >> (+) /> "/webhooks"
+let private guildWebhookEndpoint = guildEndpoint >> (+) /> "/webhooks"
+let private webhookSlackEndpoint hookid hooktoken = 
+    (webhookTokenEndpoint hookid hooktoken) + sprintf "/slack"
+let private webhookGitHubEndpoint hookid hooktoken = 
+    (webhookTokenEndpoint hookid hooktoken) + sprintf "/github"
 
 type Client (token : string) =
     let token = token
@@ -167,7 +178,7 @@ type Client (token : string) =
         
     /// Deletes another user's reaction. 
     member this.DeleteUserReaction chid mgid uid emote =
-        restDelThunk<unit> token <| userReactionsEndpoint chid mgid emote (Uid uid)
+        restDelThunk<unit> token <| userReactionsEndpoint chid mgid emote (Uid uid) <| None
     
     /// Delete a reaction the current user has made for the message.
     member this.DeleteOwnReaction chid mgid emote = 
@@ -189,11 +200,11 @@ type Client (token : string) =
 
     /// Delete a message.
     member this.DeleteMessage chid mgid = 
-        restDelCall<unit,Message> token <| messageEndpoint chid mgid
+        restDelCall<unit,Message> token <| messageEndpoint chid mgid <| None
 
     /// Delete multiple messages in a single request.
     member this.BulkDeleteMessages chid (mgids: Snowflake[]) =
-        restPostCall<Snowflake[], unit> token <| bulkDeleteEndpoint chid
+        restPostCall<Snowflake[], unit> token <| bulkDeleteEndpoint chid <| None
 
     /// Edit the channel permission overwrites for a user or role in a channel.
     member this.EditChannelPermissions
@@ -405,6 +416,15 @@ type Client (token : string) =
     member this.GetGuildVanityURL guid =
         restGetCall<unit,Invite> token <| guildVanityURLEndpoint (Some guid) <| None
 
+    /// Returns an invite object for the given code.
+    member this.GetInvite (invcode : Snowflake) =
+        restGetCall<unit,Invite> token <| invitesEndpoint invcode <| None
+    
+    /// Delete an invite. Requires the MANAGE_CHANNELS permission. 
+    /// Returns an invite object on success.
+    member this.DeleteInvite invcode =
+        restDelCall<unit,Invite> token <| invitesEndpoint invcode <| None
+    
     /// Returns the user object of the requester's account.
     member this.GetCurrentUser =
         restGetCall<unit,User> token <| userEndpoint Me <| None
@@ -448,6 +468,63 @@ type Client (token : string) =
     /// Returns an array of voice region objects that can be used when creating servers.
     member this.ListVoiceRegions = 
         restGetCall<unit,VoiceRegion[]> <| token <| voiceRegionsEndpoint <| None
+    
+    /// Create a new webhook. Requires the 'MANAGE_WEBHOOKS' permission. 
+    /// Returns a webhook object on success.
+    member this.CreateWebhook chid (args : CreateWebhook) =
+        restPostCall<_,Webhook> token <| channelWebhookEndpoint chid <| Some args
+
+    /// Returns a list of channel webhook objects. 
+    member this.GetChannelWebhooks chid =
+        restGetCall<unit,Webhook[]> token <| channelWebhookEndpoint chid <| None
+
+    /// Returns a list of guild webhook objects.
+    member this.GetGuildWebhooks guid = 
+        restGetCall<unit,Webhook[]> token <| guildWebhookEndpoint (Some guid) <| None
+
+    /// Returns the new webhook object for the given id.
+    member this.GetWebhook hookid = 
+        restGetCall<unit,Webhook> token <| webhookEndpoint hookid <| None
+
+    /// Returns the new webhook object for the given id and token.
+    /// This call does not require authentication and returns no user in the webhook object
+    member this.GetWebhookWithToken hookid hooktoken =
+        restGetCall<unit,Webhook> token <| webhookTokenEndpoint hookid hooktoken <| None
+    
+    /// Modify a webhook with given id. Requires the 'MANAGE_WEBHOOKS' permission. 
+    /// Returns the updated webhook object on success.
+    member this.ModifyWebhook hookid (args : ModifyWebhook) =
+        restPatchCall<_,Webhook> token <| webhookEndpoint hookid <| Some args
+
+    /// Modify a webhook with given id and token.
+    /// Returns the updated webhook object on success.
+    member this.ModifyWebhookWithToken hookid hooktoken (args : ModifyWebhook) =
+        restPatchCall<_,Webhook> token <| webhookTokenEndpoint hookid hooktoken <| Some args
+
+    /// Delete a webhook with given id permanently. User must be owner. 
+    /// Returns a 204 NO CONTENT response on success.
+    member this.DeleteWebhook hookid =
+        restDelThunk token <| webhookEndpoint hookid <| None
+    
+    /// Delete a webhook with given id and token permanently. User must be owner. 
+    /// Returns a 204 NO CONTENT response on success.
+    member this.DeleteWebhookWithToken hookid hooktoken =
+        restDelThunk token <| webhookTokenEndpoint hookid hooktoken <| None
+
+    /// Executes the webhook with given id and token.
+    // TODO: Querystring params
+    member this.ExecuteWebhook hookid hooktoken (args : ExecuteWebhook) =
+        restPostThunk token <| webhookTokenEndpoint hookid hooktoken <| Some args
+
+    /// Executes the slack webhook with given id and token.
+    // TODO: Querystring params
+    member this.ExecuteSlackCompatibleWebhook hookid hooktoken =
+        restPostThunk token <| webhookSlackEndpoint hookid hooktoken <| None
+
+    /// Executes the github webhook with given id and token.
+    // TODO: Querystring params
+    member this.ExecuteGitHubCompatibleWebhook hookid hooktoken =
+        restPostThunk token <| webhookGitHubEndpoint hookid hooktoken <| None
 
     interface System.IDisposable with
         member this.Dispose () =
