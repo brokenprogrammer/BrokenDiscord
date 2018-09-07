@@ -13,9 +13,8 @@ let client = new Client(token)
 let pong (m : Message) =
     job {
         if not <| Option.defaultValue false m.author.bot && m.content = "!ping" then
-            return!
-                client.CreateMessage m.channelId <| MessageCreate.T.New "pong!"
-                |> Job.startIgnore
+            return! client.CreateMessage m.channelId <| MessageCreate.T.New "pong!"
+                    |> Job.startIgnore
         else return ()
     } |> ignore
 
