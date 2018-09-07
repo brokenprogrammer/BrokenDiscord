@@ -23,8 +23,9 @@ let pong (m : Message) =
 let main _argv =
     let token = sprintf "Bot %s" <| Environment.GetEnvironmentVariable "PING_BOT_TOKEN"
     let client = new Client(token)
-    client.subscribe () |> Async.RunSynchronously
     client.Events
     |> Event.choose (function MessageCreate e -> Some e | _ -> None)
     |> Event.add pong
+    printfn "Listening for pings..."
+    client.subscribe () |> Async.RunSynchronously
     0
