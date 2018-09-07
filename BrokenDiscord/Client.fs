@@ -33,7 +33,7 @@ let private channelInvitesEndpoint =
     channelEndpoint >> (+) /> "/invites"
     
 let private bulkDeleteEndpoint = channelEndpoint >> (+) /> "/bulk-delete"
-let private historyEndpoint = channelEndpoint >> (+) "/messages"
+let private historyEndpoint = channelEndpoint >> (+) /> "/messages"
 let private messageEndpoint = historyEndpoint >> sprintf "%s/%d"
 let private msgReactionsEndpoint mgid chid = messageEndpoint mgid chid + "/reactions"
 let private emoteReactionsEndpoint chid mgid (e : Emoji) =
