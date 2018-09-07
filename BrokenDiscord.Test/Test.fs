@@ -32,7 +32,7 @@ if getenv "CI" = Some "true" then do
         let [ gid; chid; token ] = List.choose id mockvars
         let [ gid; chid ] = List.map uint64 [ gid; chid ]
         let client = new Client(token)
-        // TODO: mock tests here! (e.g. MessageCreate).
+        // TODO: Log mock error payloads, don't just throw exceptions
         let created =
             client.CreateMessage <| chid <| MessageCreate.T.New "this is a triumph"
             |> run |> returnOrFail
