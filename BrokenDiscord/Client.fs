@@ -190,7 +190,7 @@ type Client (token : string) =
     
     /// Pin a message in a channel.
     member this.AddPinnedChannelMessage chid mgid =
-        restPutThunk<unit> token <| channelPinsEndpoint chid <| None
+        restPutThunk<unit> token <| channelPinEndpoint chid mgid <| None
     
     /// Delete a pinned message in a channel. 
     member this.DeletePinnedChannelMessage chid mgid = 

@@ -7,7 +7,6 @@ open Newtonsoft.Json
 open FSharp.Data
 open HttpFs.Client
 
-//TODO: This payload object might be isolated to the Gateway module.
 // OP = opcode 
 // d = event data
 // s = sequence number
@@ -79,11 +78,11 @@ let serverWideMFARequiresMFA (p : Perms) =
     | _ -> false
     
 type Overwrite = {
-        id : Snowflake
+        id      : Snowflake
         [<JsonProperty "type">]
-        kind : PermsTarget
-        allow : int
-        deny : int
+        kind    : PermsTarget
+        allow   : int
+        deny    : int
     }
 
 type User = {
@@ -96,6 +95,35 @@ type User = {
         locale          : string option
         verified        : bool option
         email           : string option
+    }
+
+type IntegrationAccount = {
+        id      : string
+        name    : string
+    }
+
+type Integration = {
+        id                  : Snowflake
+        name                : string
+        [<JsonProperty "type">]
+        kind                : string
+        enabled             : bool
+        syncing             : bool
+        role_id             : Snowflake
+        expire_behavior     : int
+        expire_grace_period : int
+        user                : User
+        account             : IntegrationAccount
+        synced_at           : DateTime
+    }
+
+type Connection = {
+        id           : string
+        name         : string
+        [<JsonProperty "type">]
+        kind         : string
+        revoked      : bool
+        integrations : Integration[]
     }
 
 type Role = {
@@ -305,7 +333,6 @@ type Message = {
             application     = None
         }
         
-
 type ActivityType = 
     | Game      = 0
     | Streaming = 1
@@ -538,7 +565,27 @@ type WebCreateChannelInviteParams = {
 type WebGroupDMAddRecipientParams = {
         access_token    : string
         nick            : string
-    } 
+    }
+
+type WebModifyCurrentUserParams = {
+        username : string
+        avatar   : string   // TODO: Data URI Scheme for images.
+    }
+
+type WebGetCurrentUserGuildParams = {
+        before : Snowflake
+        after  : Snowflake
+        limit  : int
+    }
+
+type WebCreateDMParams = {
+        recipient_id : Snowflake
+    }
+
+type WebCreateGroupDMParams = {
+        access_tokens : string[]
+        nicks         : Map<Snowflake, string> // TODO: Is this serialized correctly? aka right type of dict expected.
+    }
 
 module HistoryParams =
     type BeforeSpec = Latest | Snowflake of Snowflake
