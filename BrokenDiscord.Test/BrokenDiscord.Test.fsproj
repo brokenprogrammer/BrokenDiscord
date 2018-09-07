@@ -67,6 +67,10 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Chessie, Version=0.6.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Chessie.0.6.0\lib\net40\Chessie.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="FSharp.Control.AsyncSeq, Version=2.0.21.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\packages\FSharp.Control.AsyncSeq.2.0.21\lib\net45\FSharp.Control.AsyncSeq.dll</HintPath>
       <Private>True</Private>
