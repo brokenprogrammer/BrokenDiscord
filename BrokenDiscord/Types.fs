@@ -29,7 +29,6 @@ module Snowflake =
     
     let withTime t s = ofTime t ||| s
     
-
 type PermsTarget =
     User | Role
     with
