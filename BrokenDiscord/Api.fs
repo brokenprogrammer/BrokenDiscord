@@ -27,8 +27,8 @@ let private basePath = sprintf "https://discordapp.com/api/%s"
 module Response =
     let parseRtn<'t> r = 
         let s = Response.readBodyAsString r
-        try s >>- ofJson<'t> >>- Ok
-        with :? JsonException -> s >>- ofJson<ApiError> >>- Error
+        if r.statusCode-200 < 100 then s >>- ofJson<'t> >>- Ok
+        else s >>- ofJson<ApiError> >>- Error
 
     let parseStat r = job {
             let stat = r.statusCode
