@@ -13,7 +13,28 @@ open BrokenDiscord.Json
 open BrokenDiscord.Json.Json
 open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
-    
+
+type OpCode = 
+    | Dispatch = 0
+    | Heartbeat = 1
+    | Identify = 2
+    | StatusUpdate = 3
+    | VoiceStateUpdate = 4
+    | VoiceServerPing = 5
+    | Resume = 6
+    | Reconnect = 7
+    | RequestGuildMembers = 8
+    | InvalidSession = 9
+    | Hello = 10
+    | HeartbeatACK = 11
+
+//TODO: Place these in their own json module
+//let jsonConverter = Fable.JsonConverter() :> JsonConverter
+//let toJson value = JsonConvert.SerializeObject(value, [|jsonConverter|])
+//let ofJson<'T> value = JsonConvert.DeserializeObject<'T>(value, [|jsonConverter|])
+//let ofJsonPart<'T> value (source : JObject) = ofJson<'T> (source.[value].ToString())
+//let ofJsonValue<'T> value (source : JObject) = (source.[value].Value<'T>())
+
 type ISerializable =
     abstract member Serialize : unit -> string
 
@@ -22,7 +43,7 @@ type HeartbeatPacket (seq : int) =
 
     interface ISerializable with
         member this.Serialize() =
-            let payload = {op = OpCode.Heartbeat; d = JObject.FromObject(this); s = None; t = None}
+            let payload = {op = 1; d = JObject.FromObject(this); s = None; t = None}
             toJson payload
 
 type IdentifyPacket (token : string, shard : int, numshards : int) =
@@ -40,7 +61,7 @@ type IdentifyPacket (token : string, shard : int, numshards : int) =
 
     interface ISerializable with
         member this.Serialize() =
-            let payload = {op = OpCode.Identify; d = JObject.FromObject(this); s = None; t = None}
+            let payload = {op = 2; d = JObject.FromObject(this); s = None; t = None}
             toJson payload
 
 type Gateway () =
@@ -119,7 +140,9 @@ type Gateway () =
 
     //TODO: better naming for this function
     let parseMessage (payload : Payload) =
-        match payload.op with
+        let op = enum<OpCode>(payload.op)
+        
+        match op with
         | OpCode.Dispatch -> 
             handleDispatch payload
         | OpCode.Heartbeat -> 1 |> ignore

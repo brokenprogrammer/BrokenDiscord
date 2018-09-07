@@ -3,27 +3,7 @@
 open Types
 open System
 open Newtonsoft.Json
-open Newtonsoft.Json.Linq
-
-type OpCode = 
-    | Dispatch = 0
-    | Heartbeat = 1
-    | Identify = 2
-    | StatusUpdate = 3
-    | VoiceStateUpdate = 4
-    | VoiceServerPing = 5
-    | Resume = 6
-    | Reconnect = 7
-    | RequestGuildMembers = 8
-    | InvalidSession = 9
-    | Hello = 10
-    | HeartbeatACK = 11
-
-// OP = opcode 
-// d = event data
-// s = sequence number
-// t = event name
-type Payload = {op : OpCode; d : JObject; s : int option; t : string option}
+open Newtonsoft.Json.Serialization
 
 type ChannelPinsUpdateMessage = {
     [<JsonProperty "channel_id">]

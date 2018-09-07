@@ -7,6 +7,13 @@ open Newtonsoft.Json
 open FSharp.Data
 open HttpFs.Client
 
+//TODO: This payload object might be isolated to the Gateway module.
+// OP = opcode 
+// d = event data
+// s = sequence number
+// t = event name
+type Payload = {op : int; d : JObject; s : int option; t : string option}
+
 type Snowflake = uint64
 module Snowflake =
     let epoch = new DateTime(2015, 1, 1)
@@ -72,11 +79,11 @@ let serverWideMFARequiresMFA (p : Perms) =
     | _ -> false
     
 type Overwrite = {
-        id      : Snowflake
+        id : Snowflake
         [<JsonProperty "type">]
-        kind    : PermsTarget
-        allow   : int
-        deny    : int
+        kind : PermsTarget
+        allow : int
+        deny : int
     }
 
 type User = {
@@ -91,66 +98,6 @@ type User = {
         email           : string option
     }
 
-type Prune = {
-        pruned : int
-    }
-
-type PruneQueryParams = {
-        days : int
-    }
-
-type Ban = {
-        reson : string option
-        user  : User
-    }
-
-type CreateBan = {
-        [<JsonProperty "delete-message-days">]
-        delete_message_days : int
-        reason              : string
-    }
-
-type IntegrationAccount = {
-        id      : string
-        name    : string
-    }
-
-type Integration = {
-        id                  : Snowflake
-        name                : string
-        [<JsonProperty "type">]
-        kind                : string
-        enabled             : bool
-        syncing             : bool
-        role_id             : Snowflake
-        expire_behavior     : int
-        expire_grace_period : int
-        user                : User
-        account             : IntegrationAccount
-        synced_at           : DateTime
-    }
-
-type CreateIntegration = {
-        [<JsonProperty "type">]
-        kind : string
-        id   : Snowflake
-    }
-
-type ModifyIntegration = {
-        expire_behavior     : int
-        expire_grace_period : int
-        enable_emoticons    : bool
-    }
-
-type Connection = {
-        id           : string
-        name         : string
-        [<JsonProperty "type">]
-        kind         : string
-        revoked      : bool
-        integrations : Integration[]
-    }
-
 type Role = {
         id          : Snowflake
         name        : string
@@ -159,22 +106,6 @@ type Role = {
         position    : int
         permissions : int
         managed     : bool
-        mentionable : bool
-    }
-
-type CreateRole = {
-        name        : string option
-        permission  : int option
-        color       : int option
-        hoist       : bool option
-        mentionable : bool option
-    }
-
-type ModifyRole = {
-        name        : string
-        permissions : int
-        color       : int
-        hoist       : bool
         mentionable : bool
     }
 
@@ -374,6 +305,7 @@ type Message = {
             application     = None
         }
         
+
 type ActivityType = 
     | Game      = 0
     | Streaming = 1
@@ -434,15 +366,6 @@ type VoiceState = {
         suppress    : bool
     }
 
-type VoiceRegion = {
-        id          : string
-        name        : string
-        vip         : bool
-        optimal     : bool
-        deprecated  : bool
-        custom      : bool
-}
-
 type PresenceUpdate = {
         user    : User
         roles   : Snowflake[]
@@ -458,11 +381,6 @@ type GuildMember = {
         joinedAt    : DateTime
         deaf        : bool
         mute        : bool
-    }
-
-type GuildEmbed = {
-        enabled     : bool
-        channel_id  : Snowflake option
     }
 
 type Guild = {
@@ -499,72 +417,6 @@ type Guild = {
         channels                        : Channel[] option
         presences                       : PresenceUpdate[] option
     }
-
-type CreateGuild = {
-        name                            : string
-        region                          : string
-        icon                            : string
-        verification_level              : int
-        default_message_notifications   : int
-        explicit_content_filter         : int
-        roles                           : Role[]
-        channels                        : Channel[]
-    }
-
-type ModifyGuild = {
-        name                            : string
-        region                          : string
-        verification_level              : int
-        default_message_notifications   : int
-        explicit_content_filter         : int
-        afk_channel_id                  : Snowflake
-        afk_timeout                     : int
-        icon                            : string
-        owner_id                        : Snowflake
-        splash                          : string
-        system_channel_id               : Snowflake
-    }
-
-type CreateGuildChannel = {
-        name                    : string
-        [<JsonProperty "type">]
-        kind                    : int
-        topic                   : string
-        bitrate                 : int
-        user_limit              : int
-        permission_overwrites   : Overwrite[]
-        parent_id               : Snowflake
-        nsfw                    : bool
-    }
-
-type ModifyPosition = {
-        id          : Snowflake
-        position    : int
-    }
-
-
-type GuildMembersList = {
-        limit : int
-        after : Snowflake
-    }
-
-type GuildMemberAdd = {
-        access_token : string
-        nick         : string option
-        roles        : Snowflake[] option
-        mute         : bool option
-        deaf         : bool option
-    }
-
-type GuildMemberModify = {
-        nick        : string option
-        roles       : Snowflake[] option
-        mute        : bool option
-        deaf        : bool option
-        channel_id  : Snowflake option
-    }
-
-type CurrentUserModifyNick = { nick : string }
 
 type InviteMetadata = {
         inviter     : User
@@ -686,27 +538,7 @@ type WebCreateChannelInviteParams = {
 type WebGroupDMAddRecipientParams = {
         access_token    : string
         nick            : string
-    }
-
-type WebModifyCurrentUserParams = {
-        username : string
-        avatar   : string   // TODO: Data URI Scheme for images.
-    }
-
-type WebGetCurrentUserGuildParams = {
-        before : Snowflake
-        after  : Snowflake
-        limit  : int
-    }
-
-type WebCreateDMParams = {
-        recipient_id : Snowflake
-    }
-
-type WebCreateGroupDMParams = {
-        access_tokens : string[]
-        nicks         : Map<Snowflake, string> // TODO: Is this serialized correctly? aka right type of dict expected.
-    }
+    } 
 
 module HistoryParams =
     type BeforeSpec = Latest | Snowflake of Snowflake
