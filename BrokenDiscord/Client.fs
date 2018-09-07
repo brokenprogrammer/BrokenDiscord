@@ -44,10 +44,23 @@ let private emoteReactionsEndpoint chid mgid (e : Emoji) =
 let private userReactionsEndpoint chid mgid e (u : USpec) =
     emoteReactionsEndpoint chid mgid e + sprintf "/%s" (string u)
 
-let private guildEndpoint (guid : Snowflake option) = 
+let private guildEndpoint (guid : Snowflake option) : string = 
     match guid with
     | Some x -> sprintf "/guilds/%d" x
-    | None -> "/guilds"
+    | None -> sprintf "/guilds"
+let private guildChannelEndpoint = guildEndpoint >> (+) /> "/channels"
+let private guildListMemberEndpoint = guildEndpoint >> (+) /> "/members"
+let private guildBansEndpoint = guildEndpoint >> (+) /> "/bans"
+let private guildBanEndpoint = guildBansEndpoint >> sprintf "%s/%d"
+let private guildMemberEndpoint = guildListMemberEndpoint >> sprintf "%s/%d" 
+
+//let private guildRolesEndpoint guid uid = (guildMemberEndpoint (Some guid) uid) + "/roles"
+let private guildRolesEndpoint uid = guildMemberEndpoint uid >> (+) /> "/roles"
+let private guildMemberRolesEndpoint uid = guildRolesEndpoint uid >> sprintf "%s/%d"
+//let private guildMemberRolesEndpoint = guildRolesEndpoint >> (+) /> sprintf "%d"
+
+let private guildModifyCurrentNickEndpoint guid (u: USpec) = 
+    sprintf "%s/%s/nick" (guildListMemberEndpoint guid) (string u)
 
 let private userEndpoint (u : USpec) = sprintf "/users/%s" (string u)
 let private userDMEndpoint = userEndpoint >> (+) /> "/channels"
@@ -235,8 +248,76 @@ type Client (token : string) =
     member this.DeleteGuild guid =
         restDelThunk<unit> token <| guildEndpoint (Some guid) <| None
 
-    
+    /// Returns a list of guild channel objects.
+    member this.GetGuildChannels guid = 
+        restGetCall<unit,Channel> token <| guildChannelEndpoint (Some guid) <| None
 
+    member this.CreateGuildChannel guid (args : CreateGuildChannel) = 
+        restPostCall<_,Channel> token <| guildChannelEndpoint (Some guid) <| Some args
+
+    /// Modify the positions of a set of channel objects for the guild. 
+    /// Returns a 204 empty response on success. 
+    member this.ModifyGuildChannelPositions guid (args : ModifyGuildChannelPosition) =
+        restPatchThunk token <| guildChannelEndpoint (Some guid) <| Some args
+    
+    /// Returns a guild member object for the specified user.
+    member this.GetGuildMember guid (uid : Snowflake) = 
+        restGetCall<unit,GuildMember> token <| guildMemberEndpoint (Some guid) uid <| None
+    
+    /// Returns a list of guild member objects that are members of the guild.
+    member this.ListGuildMembers guid (args : GuildMembersList option) = 
+        restGetCall<_,GuildMember> token <| guildListMemberEndpoint (Some guid) <| args
+    
+    /// Adds a user to the guild, provided you have a valid oauth2 access 
+    /// token for the user with the guilds.join scope.
+    /// Returns a 201 Created with the guild member as the body, 
+    /// or 204 No Content if the user is already a member of the guild. 
+    member this.AddGuildMember guid uid (args : GuildMemberAdd) =
+        restPutThunk token <| guildMemberEndpoint (Some guid) uid <| Some args
+
+    /// Modify attributes of a guild member. Returns a 204 empty response on success. 
+    member this.ModifyGuildMember guid uid (args : GuildMemberModify) =
+        restPatchThunk token <| guildMemberEndpoint (Some guid) uid <| Some args
+
+    /// Modifies the nickname of the current user in a guild. 
+    /// Returns a 200 with the nickname on success. 
+    member this.ModifyCurrentUserNick guid (args : CurrentUserModifyNick) =
+        restPatchThunk token <| guildModifyCurrentNickEndpoint (Some guid) Me <| Some args
+
+    /// Adds a role to a guild member. Requires the 'MANAGE_ROLES' permission. 
+    /// Returns a 204 empty response on success.
+    member this.AddGuildMemberRole guid uid (rid : Snowflake) =
+        restPutThunk token <| guildMemberRolesEndpoint (Some guid) uid rid <| None
+
+    /// Removes a role from a guild member. Requires the 'MANAGE_ROLES' permission. 
+    /// Returns a 204 empty response on success.
+    member this.RemoveGuildMemberRole guid uid rid = 
+        restDelThunk token <| guildMemberRolesEndpoint (Some guid) uid rid <| None
+
+    /// Remove a member from a guild. Requires 'KICK_MEMBERS' permission.
+    /// Returns a 204 empty response on success. 
+    member this.RemoveGuildMember guid uid =
+        restDelThunk token <| guildMemberEndpoint (Some guid) uid <| None
+
+    /// Returns a list of ban objects for the users banned from this guild. 
+    /// Requires the 'BAN_MEMBERS' permission.
+    member this.GetGuildBans guid = 
+        restGetCall<unit,Ban> token <| guildBansEndpoint (Some guid) <| None 
+        
+    /// Returns a ban object for the given user or a 404 not found if the ban cannot be found. 
+    member this.GetGuildBan guid (uid : Snowflake) = 
+        restGetCall<unit,Ban> token <| guildBanEndpoint (Some guid) uid <| None
+
+    /// Create a guild ban, and optionally delete previous messages sent by the banned user.
+    /// Returns a 204 empty response on success.
+    member this.CreateGuildBan guid uid (args : CreateBan)= 
+         restPutThunk token <| guildBanEndpoint (Some guid) uid <| Some args
+
+    /// Remove the ban for a user. Requires the 'BAN_MEMBERS' permissions. 
+    /// Returns a 204 empty response on success. 
+    member this.RemoveGuildBan guid uid =
+        restDelThunk token <| guildBanEndpoint (Some guid) uid <| None
+    
     /// Returns the user object of the requester's account.
     member this.GetCurrentUser =
         restGetCall<unit,User> token <| userEndpoint Me <| None

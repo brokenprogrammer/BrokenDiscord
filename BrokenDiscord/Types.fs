@@ -91,6 +91,17 @@ type User = {
         email           : string option
     }
 
+type Ban = {
+        reson : string option
+        user  : User
+    }
+
+type CreateBan = {
+        [<JsonProperty "delete-message-days">]
+        delete_message_days : int
+        reason              : string
+    }
+
 type IntegrationAccount = {
         id      : string
         name    : string
@@ -472,6 +483,46 @@ type ModifyGuild = {
         splash                          : string
         system_channel_id               : Snowflake
     }
+
+type CreateGuildChannel = {
+        name                    : string
+        [<JsonProperty "type">]
+        kind                    : int
+        topic                   : string
+        bitrate                 : int
+        user_limit              : int
+        permission_overwrites   : Overwrite[]
+        parent_id               : Snowflake
+        nsfw                    : bool
+    }
+
+type ModifyGuildChannelPosition = {
+        id          : Snowflake
+        position    : int
+    }
+
+type GuildMembersList = {
+        limit : int
+        after : Snowflake
+    }
+
+type GuildMemberAdd = {
+        access_token : string
+        nick         : string option
+        roles        : Snowflake[] option
+        mute         : bool option
+        deaf         : bool option
+    }
+
+type GuildMemberModify = {
+        nick        : string option
+        roles       : Snowflake[] option
+        mute        : bool option
+        deaf        : bool option
+        channel_id  : Snowflake option
+    }
+
+type CurrentUserModifyNick = { nick : string }
 
 type InviteMetadata = {
         inviter     : User
