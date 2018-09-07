@@ -12,7 +12,7 @@ let client = new Client(token)
 
 let pong (m : Message) =
     job {
-        if not <| Option.defaultValue false m.author.bot && m.content = "!ping" then
+        if m.content = "!ping" then
             return! client.CreateMessage m.channelId <| MessageCreate.T.New "pong!"
                     |> Job.startIgnore
         else return ()
@@ -24,6 +24,7 @@ let main _argv =
     let client = new Client(token)
     client.Events
     |> Event.choose (function MessageCreate e -> Some e | _ -> None)
+    |> Event.filter (fun e -> Option.defaultValue false e.author.bot)
     |> Event.add pong
     printfn "Listening for pings..."
     client.subscribe () |> Async.StartAsTask |> ignore
