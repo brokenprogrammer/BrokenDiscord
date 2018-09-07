@@ -1,69 +1,76 @@
-﻿module BrokenDiscord.Api
+﻿module BrokenDiscord.RESTful
 
 open System
-open System.Net
-open System.Net.Http
-open System.Net.Http.Headers
-open System.Text
+open FSharpPlus
 
 open BrokenDiscord.Types
 open BrokenDiscord.Json.Json
+open Newtonsoft.Json
 
-let setHeaders (client : HttpClient) (token : string) (userAgent : string) = 
-    client.DefaultRequestHeaders.Add("Authorization", String.Format("Bot {0}", token))
-    client.DefaultRequestHeaders.Add("User-Agent", userAgent)
+open Hopac
+open Hopac.Infixes
+open HttpFs.Client
+    
+let private userAgent =
+    sprintf "DiscordBot (%s, %s)"
+    <| "https://github.com/brokenprogrammer/BrokenDiscord"
+    <| "6"
 
-type Api (token : string) =
-    let baseURL = "https://discordapp.com/api"
-    let userAgent =
-        sprintf "DiscordBot (%s, %s)"
-        <| "https://github.com/brokenprogrammer/BrokenDiscord"
-        <| "6"
-    let token = token
-    
-    let client : HttpClient = new HttpClient()
-    do setHeaders client token userAgent
 
-    member this.GET<'T> (path : string) =
-        async {
-            let! res = client.GetAsync(baseURL + path) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
+let private setHeaders token req =
+    req
+    |> Request.setHeader (Authorization (sprintf "Bot %s" token))
+    |> Request.setHeader (UserAgent userAgent)
+
+let private basePath = sprintf "https://discordapp.com/api/%s"
+
+module Response =
+    let parseRtn<'t> r = 
+        let s = Response.readBodyAsString r
+        try s >>- ofJson<'t> >>- Ok
+        with :? JsonException -> s >>- ofJson<ApiError> >>- Error
+
+    let parseStat r = job {
+            let stat = r.statusCode
+            if stat - 200 < 100 then return Ok ()
+            else return! Response.readBodyAsString r >>- ofJson<ApiError> >>- Error
         }
+
+module Request =
+    let jsonBody<'t> (x : 't option) =
+        match x with
+        | Some x -> Request.bodyString (toJson x)
+        | _ when typeof<'t> = typeof<unit> -> id
+        | None -> id
     
-    member this.POST<'T> (path : string, content : string) =
-        async {
-            let! res = client.PostAsync((baseURL + path), StringContent(content, Encoding.UTF8, "application/json")) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
-        }
-    
-    member this.PUT<'T> (path : string, content : string) =
-        async {
-            let! res = client.PutAsync((baseURL + path), StringContent(content, Encoding.UTF8, "application/json")) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
-        }
-    
-    member this.DELETE<'T> (path : string) =
-        async {
-            let! res = client.DeleteAsync(baseURL + path) |> Async.AwaitTask
-            if res.IsSuccessStatusCode then
-                let! content = res.Content.ReadAsStringAsync() |> Async.AwaitTask
-                return content |> ofJson<'T> |> Some
-            else
-                return None
-        }
-    
-    interface System.IDisposable with
-        member this.Dispose () =
-            client.Dispose()
+    let enqueue<'i> token method path (body: 'i option) =
+        Request.createUrl method <| basePath path
+        |> setHeaders token
+        |> jsonBody<'i> body
+        |> getResponse
+        
+    let call<'i, 'o> token method path body =
+        enqueue<'i> token method path body >>= Response.parseRtn<'o>
+
+    let thunk<'i> token method path (body : 'i option) =
+        enqueue<'i> token method path body >>= Response.parseStat
+
+let restForm<'t> token method path (data : FormData list) =
+    Request.createUrl method <| basePath path
+    |> setHeaders token
+    |> Request.body (RequestBody.BodyForm data)
+    |> getResponse >>= Response.parseRtn<'t>
+
+// these expect return values from the cloud.
+let restGetCall<'i, 'o>    = Request.call<'i, 'o> /> Get
+let restDelCall<'i, 'o>    = Request.call<'i, 'o> /> Delete
+let restPostCall<'i, 'o>   = Request.call<'i, 'o> /> Post
+let restPutCall<'i, 'o>    = Request.call<'i, 'o> /> Put
+let restPatchCall<'i, 'o>  = Request.call<'i, 'o> /> Patch
+
+// these ignore any return values unless they're error payloads.
+let restGetThunk<'i>   = Request.thunk<'i> /> Get
+let restDelThunk<'i>   = Request.thunk<'i> /> Delete
+let restPutThunk<'i>   = Request.thunk<'i> /> Put
+let restPatchThunk<'i> = Request.thunk<'i> /> Patch
+let restPostThunk<'i>  = Request.thunk<'i> /> Post

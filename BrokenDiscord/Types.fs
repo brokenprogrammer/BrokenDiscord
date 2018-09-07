@@ -4,6 +4,8 @@ open System
 
 open Newtonsoft.Json.Linq
 open Newtonsoft.Json
+open FSharp.Data
+open HttpFs.Client
 
 //TODO: This payload object might be isolated to the Gateway module.
 // OP = opcode 
@@ -14,23 +16,19 @@ type Payload = {op : int; d : JObject; s : int option; t : string option}
 
 type Snowflake = uint64
 module Snowflake =
-    let Epoch = new DateTime(2015, 1, 1)
-    let EpochLocal = new DateTimeOffset(Epoch, TimeZoneInfo.Local.BaseUtcOffset)
-
-    let TimeStamp (snowflake : Snowflake) = 
-        snowflake >>> 22 |> float
+    let epoch = new DateTime(2015, 1, 1)
+    let epochLocal = new DateTimeOffset(epoch, TimeZoneInfo.Local.BaseUtcOffset)
+    let timestamp (s : Snowflake) = 
+        s >>> 22 |> float
         |> TimeSpan.FromMilliseconds
-        |> (+) Epoch
-
-    let OfTime t : Snowflake =
-        (t - Epoch).TotalMilliseconds
-        |> uint64
-        <<< 22
-
-    let WithTime snowflake t =
-        OfTime t
-        |> (|||) snowflake
-
+        |> (+) epoch
+        
+    let ofTime t =
+        (t - epoch).TotalMilliseconds
+        |> uint64 <<< 22
+    
+    let withTime t s = ofTime t ||| s
+    
 type PermsTarget =
     User | Role
     with
@@ -219,7 +217,12 @@ type Emoji = {
         requireColons   : bool option
         managed         : bool option
         animated        : bool option
-    }
+    } with
+    static member Empty = 
+        {id = None; name = ""; roles = None; user = None; requireColons = None; managed = None; animated = None;}
+    static member CreateOfUnicode unicode = { Emoji.Empty with name=unicode}
+    static member CreateOfNameId name id = {Emoji.Empty with id = id; name = name}
+    static member CreateAnimated name id animated = {Emoji.Empty with id = id; name = name; animated = animated}
 
 type Reaction = {
         count   : int
@@ -281,7 +284,7 @@ type Message = {
     } with
     static member Create author content =
         {
-            id              = Snowflake.OfTime DateTime.Now
+            id              = Snowflake.ofTime DateTime.Now
             channelId       = 0UL
             author          = author
             content         = content
@@ -451,6 +454,7 @@ type WebGetChannelMessagesParams = {
         after   : Snowflake option
         limit   : int option
     }
+    with static member None = { around=None; before=None; after=None; limit=None }
 
 // https://discordapp.com/developers/docs/resources/channel#create-message
 type WebCreateMessageParams = {
@@ -462,6 +466,45 @@ type WebCreateMessageParams = {
         payload_json : string option
     }
 
+module MessageCreate = 
+    type File = {
+            mime : ContentType; name: string
+            content: System.IO.Stream }
+    type RichContent =
+        { embed : Embed option; files : File[] }
+        with static member Default = { embed=None; files=[| |] }
+open MessageCreate
+type MessageCreate = {
+        content     : string
+        nonce       : Snowflake option
+        tts         : bool option
+        richContent : RichContent option
+    } with
+    static member Default = { content=""; nonce=None; tts=None; richContent=None }
+    static member New content = { MessageCreate.Default with content=content }
+    member this.WithFile (file:File) =
+        let rich = Option.defaultValue RichContent.Default this.richContent
+        { this with richContent = 
+                    Some { rich with files=(Array.append rich.files [| file |]) } }
+                    
+    member this.WithFile(name:string, body) =
+        let ext = name.[name.LastIndexOf('.')..]
+        let contentType = MimeTypes.tryFind ext
+        let contentType =
+            match contentType with
+            | Some x -> x
+            | _ -> failwithf "No content-type found corresponding to extension %s" ext
+            |> ContentType.parse
+            |> Option.get
+        let file = 
+            {   mime=contentType; name=name; content=body }
+        this.WithFile(file)
+        
+    member this.WithEmbed(embed) =
+        let rich = Option.defaultValue RichContent.Default this.richContent
+        { this with richContent =
+                    Some { rich with embed=Some embed } }
+                
 type WebGetReactionsParams = {
         before  : Snowflake option
         after   : Snowflake option
@@ -495,4 +538,53 @@ type WebCreateChannelInviteParams = {
 type WebGroupDMAddRecipientParams = {
         access_token    : string
         nick            : string
-    }
+    } 
+
+module HistoryParams =
+    type BeforeSpec = Latest | Snowflake of Snowflake
+    type Direction =
+        | Before of BeforeSpec
+        | After of Snowflake
+        | Around of Snowflake
+        
+open HistoryParams 
+
+type HistoryParams =
+    { limit : int; direction : Direction }
+    with
+    static member Default =
+        { limit=15; direction=Before Latest }
+    
+    member x.Payload =
+        if x.limit > 100 then failwith "limit must be in the range (0, 100]."
+        {   WebGetChannelMessagesParams.None
+            with
+                before =  
+                    match x.direction with
+                    | Before (Snowflake x) -> Some x
+                    | _ -> None
+                after = match x.direction with After x -> Some x | _ -> None
+                around = match x.direction with Around x -> Some x | _ -> None }
+                
+    /// Creates a specification which retrieves the adjacent batch of messages
+    /// with the current limit=n in the given direction, given
+    /// the last snowflake retrieved.
+    member this.ScrollBy n from =
+        {   this
+            with
+                direction = 
+                    match this.direction with 
+                    | Before _ -> Before (Snowflake from)
+                    | After _ -> After from
+                    | Around _ -> failwith "Direction.Around is not scrollable."
+                limit = this.limit - n }
+
+type ApiError =
+    { code : uint32; message : string }
+    
+exception ApiException of ApiError
+
+type USpec = Me | Uid of Snowflake
+    with
+    override x.ToString () =
+        match x with Me -> "@me" | Uid x -> (string x)

@@ -1,7 +1,7 @@
 ﻿module BrokenDiscord.Client
 
 open BrokenDiscord.Gateway
-open BrokenDiscord.Api
+open BrokenDiscord.RESTful
 open BrokenDiscord.Types
 open BrokenDiscord.Json
 open BrokenDiscord.Json.Json
@@ -9,12 +9,44 @@ open BrokenDiscord.Json.Json
 open System
 open Events
 open System.Net
+open HttpFs.Client
+open Hopac
+open Hopac.Infixes
+
+open FSharp.Control
+open Newtonsoft.Json.Linq
+open FSharpPlus
+
+let private uesc = System.Uri.EscapeDataString
+
+let private channelEndpoint : (Snowflake->_) = sprintf "/channels/%d"
+let private channelOverwriteEndpoint : (_->Snowflake->_) =
+    channelEndpoint >> sprintf "%s/permissions/overwrite/%d"
+let private channelTypingEndpoint = channelEndpoint >> (+) /> "/typing"
+let private channelRoutingEndpoint : (_->Snowflake->_) =
+    channelEndpoint >> sprintf "%s/recipients/%d"
+let private channelPinsEndpoint = channelEndpoint >> (+) /> "/pins"
+let private channelPinEndpoint : (_->Snowflake->_) =
+    channelPinsEndpoint >> sprintf "%s/%d"
+ 
+let private channelInvitesEndpoint =
+    channelEndpoint >> (+) /> "/invites"
+    
+let private bulkDeleteEndpoint = channelEndpoint >> (+) /> "/bulk-delete"
+let private historyEndpoint = channelEndpoint >> (+) /> "/messages"
+let private messageEndpoint = historyEndpoint >> sprintf "%s/%d"
+let private msgReactionsEndpoint mgid chid = messageEndpoint mgid chid + "/reactions"
+let private emoteReactionsEndpoint chid mgid (e : Emoji) =
+    msgReactionsEndpoint chid mgid
+    + (sprintf "/%s"
+        <| Option.defaultValue e.name (Option.map string e.id) |> uesc)
+        
+let private userReactionsEndpoint chid mgid e (u : USpec) =
+    emoteReactionsEndpoint chid mgid e + sprintf "/%s" (string u)
 
 type Client (token : string) =
     let token = token
-
     let gw = new Gateway()
-    let api = new Api(token)
     
     let mutable Sessionid = 0
 
@@ -27,156 +59,151 @@ type Client (token : string) =
     member this.login() = token |> gw.connect |> Async.RunSynchronously
 
     /// Get a channel by ID. Returns a channel object.
-    member this.GetChannel (channelid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}", channelid)
-        api.GET<Channel>(endpoint) |> Async.RunSynchronously 
+
+    member this.GetChannel chid = 
+        restGetCall<unit,Channel> token <| channelEndpoint chid <| None
     
     /// Update a channels settings. Returns a channel on success, 
     /// and a 400 BAD REQUEST on invalid parameters.
-    member this.ModifyChannel (channelid : Snowflake, jsonParams : WebModifyChannelParams) = 
-        let endpoint = String.Format("/channels/{0}", channelid)
-        let json = jsonParams |> toJson
-        api.PUT<Channel>(endpoint, json) |> Async.RunSynchronously
+    member this.EditChannel (args : WebModifyChannelParams) (chid:Snowflake) =
+        restPatchCall<_, Channel> token
+        <| channelEndpoint chid <| Some args
 
     /// Delete a channel, or close a private message.
     /// Returns a channel object on success.
-    member this.DeleteChannel (channelid : Snowflake) =
-        let endpoint = String.Format("/channels/{0}", channelid)
-        api.DELETE<Channel>(endpoint) |> Async.RunSynchronously
+    member this.DeleteChannel (chid : Snowflake) =
+        restDelCall<unit,Channel> token <| channelEndpoint chid <| None
 
     /// Returns the messages for a channel.
     /// Returns an array of message objects on success.
-    member this.GetChannelMessages (channelid : Snowflake, jsonParams : WebGetChannelMessagesParams) =
-        //TODO: Query parameters.
-        let endpoint = String.Format("/channels/{0}/messages", channelid)
-        let json = jsonParams |> toJson
-        api.GET<list<Message>>(endpoint) |> Async.RunSynchronously
+    member this.GetChannelMessages (args : HistoryParams) (chid : Snowflake) =
+        let retrieve =
+            restGetCall<WebGetChannelMessagesParams, Message[]> token <| historyEndpoint chid
+        asyncSeq {
+            let! payload = retrieve (Some args.Payload) |> Job.toAsync
+            let payload =
+                match payload with
+                | Ok x -> x
+                | Error err -> raise <| ApiException err
+            yield! AsyncSeq.ofSeq payload
+            let remaining = 
+                if args.limit > 100 then args.limit-100
+                else 0
+            if remaining > 0 then
+                yield!
+                    this.GetChannelMessages
+                    <| args.ScrollBy remaining (Array.last payload).id
+                    <| chid 
+            }
 
     /// Returns a specific message in the channel. 
     /// Returns a message object on success.
-    member this.GetChannelMessage (channelid : Snowflake, messageid : Snowflake) =
-        let endpoint = String.Format("/channels/{0}/messages/{1}", channelid, messageid)
-        api.GET<Message>(endpoint) |> Async.RunSynchronously
+    member this.GetChannelMessage (chid : Snowflake) (mgid : Snowflake) =
+        restGetCall<unit,Message> token <| messageEndpoint chid mgid <| None
     
     /// Post a message to a guild text or DM channel.
-    member this.CreateMessage (channelid : Snowflake, message : WebCreateMessageParams) =
+    member this.CreateMessage (chid : Snowflake) (args : MessageCreate) =
         //TODO: Might have to be restructured to work with uploading files.
-        let endpoint = String.Format("/channels/{0}/messages", channelid)
-        let json = message |> toJson
-        api.POST<Message>(endpoint, json) |> Async.RunSynchronously
+        let unwrap = function Some x -> [x] | None -> []
+        let body =
+            let rc = 
+                args.richContent
+                |> Option.map
+                    (fun rc -> NameValue(
+                                "payload_json",
+                                toJson <| JProperty("embed", toJson rc)))
+            match args.richContent with
+            | Some rc ->
+                [ for f in rc.files do
+                    yield FormData.FormFile(f.name, (f.name, f.mime, StreamData f.content)) ]
+            | None -> []
+            |> List.append
+                <| List.concat [
+                    [NameValue("content", args.content)]
+                    unwrap rc
+                    args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
+                    args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
+         
+        restForm<Message> token Post
+        <| historyEndpoint chid
+        <| body
 
     /// Create a reaction for the message. 
-    member this.CreateReaction (channelid : Snowflake, messageid : Snowflake, emoji : Emoji) = 
-        let emojiVal = match emoji.id with
-                    | Some id -> "" + (string id) + ":" + emoji.name
-                    | None -> emoji.name
-
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions/{2}/@me", channelid, messageid, emojiVal)
-        api.PUT(endpoint, "") |> Async.RunSynchronously |> ignore
+    member this.CreateReaction chid mgid emote =
+        restPutThunk<unit> token <| userReactionsEndpoint chid mgid emote Me <| None
+        
+    /// Deletes another user's reaction. 
+    member this.DeleteUserReaction chid mgid uid emote =
+        restDelThunk<unit> token <| userReactionsEndpoint chid mgid emote (Uid uid)
     
     /// Delete a reaction the current user has made for the message.
-    member this.DeleteOwnReaction (channelid : Snowflake, messageid : Snowflake, emoji : Emoji) = 
-        let emojiVal = match emoji.id with
-                    | Some id -> "" + (string id) + ":" + emoji.name
-                    | None -> emoji.name
-
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions/{2}/@me", channelid, messageid, emojiVal)
-        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
+    member this.DeleteOwnReaction chid mgid emote = 
+        restDelThunk token <| userReactionsEndpoint chid mgid emote Me <| None
     
-    /// Deletes another user's reaction. 
-    member this.DeleteUserReaction (channelid : Snowflake, messageid : Snowflake, emoji : Emoji, userid : Snowflake) =
-        let emojiVal = match emoji.id with
-                    | Some id -> "" + (string id) + ":" + emoji.name
-                    | None -> emoji.name
-
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions/{2}/{3}", channelid, messageid, emojiVal, userid)
-        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
-
     /// Get a list of users that reacted with this emoji. 
     /// Returns an array of user objects on success.
-    member this.GetReactions (channelid : Snowflake, messageid : Snowflake, emoji : Emoji, jsonParams : WebGetReactionsParams) =
-        //TODO: Query params
-        let emojiVal = match emoji.id with
-                    | Some id -> "" + (string id) + ":" + emoji.name
-                    | None -> emoji.name
-
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions/{2}", channelid, messageid, emojiVal)
-        api.GET<list<User>>(endpoint) |> Async.RunSynchronously
+    member this.GetReactions chid mgid emote (args : WebGetReactionsParams option) =
+        restGetCall<_,Reaction[]> token <| emoteReactionsEndpoint chid mgid emote <| args
 
     /// Deletes all reactions on a message.
-    member this.DeleteAllReactions (channelid : Snowflake, messageid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}/messages/{1}/reactions", channelid, messageid)
-        api.DELETE(endpoint) |> Async.RunSynchronously
+    member this.DeleteAllReactions chid mgid emote =
+        restDelThunk<unit> token <| emoteReactionsEndpoint chid mgid emote <| None
 
     /// Edit a previously sent message.
     /// Returns a message object
-    member this.EditMessage (channelid : Snowflake, messageid : Snowflake, jsonParams : WebEditMessageParams) =
-        let endpoint = String.Format("/channels/{0}/messages/{1}", channelid, messageid)
-        api.PUT<Message>(endpoint, (jsonParams |> toJson)) |> Async.RunSynchronously
+    member this.EditMessage chid mgid (args : WebEditMessageParams) =
+        restPatchCall<_,Message> token <| messageEndpoint chid mgid <| Some args
 
     /// Delete a message.
-    member this.DeleteMessage (channelid : Snowflake, messageid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}/messages/{1}", channelid, messageid)
-        api.DELETE(endpoint) |> Async.RunSynchronously
+    member this.DeleteMessage chid mgid = 
+        restDelCall<unit,Message> token <| messageEndpoint chid mgid
 
     /// Delete multiple messages in a single request.
-    member this.BulkDeleteMessages (channelid : Snowflake, messageids : list<Snowflake>) =
-        let endpoint = String.Format("/channels/{0}/messages/bulk-delete", channelid)
-        api.POST(endpoint, (messageids |> toJson)) |> Async.RunSynchronously
+    member this.BulkDeleteMessages chid (mgids: Snowflake[]) =
+        restPostCall<Snowflake[], unit> token <| bulkDeleteEndpoint chid
 
     /// Edit the channel permission overwrites for a user or role in a channel.
-    member this.EditChannelPermissions (channelid : Snowflake, overwriteid : Snowflake, 
-                                        jsonParams : WebEditChannelPermissionsParams) = 
-        let endpoint = String.Format("/channels/{0}/permissions/{1}", channelid, overwriteid)
-        api.PUT(endpoint, (jsonParams |> toJson)) |> Async.RunSynchronously |> ignore
+    member this.EditChannelPermissions
+            chid targetId
+            (args : WebEditChannelPermissionsParams) =
+        restPostCall<_, Perms> token <| channelOverwriteEndpoint chid targetId <| Some args
     
     /// Returns a list of invite objects for the channel.
-    member this.GetChannelInvites (channelid : Snowflake) =
-        let endpoint = String.Format("/channels/{0}/invites", channelid)
-        api.GET<Invite>(endpoint) |> Async.RunSynchronously
+    member this.GetChannelInvites chid =
+        restGetCall<unit,Invite[]> token <| channelInvitesEndpoint chid
     
     /// Create a new invite object for the channel.
-    member this.CreateChannelInvite (channelid : Snowflake, jsonParams : WebCreateChannelInviteParams)= 
-        let endpoint = String.Format("/channels/{0}/invites", channelid)
-        api.POST<Invite>(endpoint, (jsonParams |> toJson)) |> Async.RunSynchronously
+    member this.CreateChannelInvite chid (args : WebCreateChannelInviteParams option) =
+        restPostCall<_,Invite[]> token <| channelInvitesEndpoint chid <| args
         
     /// Delete a channel permission overwrite for a user or role in a channel.
-    member this.DeleteChannelPermission (channelid : Snowflake, overwriteid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}/permissions/{1}", channelid, overwriteid)
-        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
+    member this.DeleteChannelPermission chid targetId =
+        restDelThunk<unit> token <| channelOverwriteEndpoint chid targetId <| None
     
     /// Post a typing indicator for the specified channel. 
-    member this.TriggerTypingIndicator (channelid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}/typing", channelid)
-        api.POST(endpoint, "") |> Async.RunSynchronously |> ignore
+    member this.TriggerTypingIndicator chid = 
+        restPostThunk<unit> token <| channelTypingEndpoint chid
     
     /// Returns all pinned messages in the channel as an array of message objects.
-    member this.GetPinnedMessages (channelid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}/typing", channelid)
-        api.GET<list<Message>>(endpoint) |> Async.RunSynchronously
+    member this.GetPinnedMessages chid =
+        restGetCall<unit,Message[]> token <| channelPinsEndpoint chid <| None
     
     /// Pin a message in a channel.
-    member this.AddPinnedChannelMessage (channelid : Snowflake, messageid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}/pins/{1}", channelid, messageid)
-        api.PUT(endpoint, "") |> Async.RunSynchronously |> ignore
+    member this.AddPinnedChannelMessage chid mgid =
+        restPutThunk<unit> token <| channelPinsEndpoint chid <| None
     
     /// Delete a pinned message in a channel. 
-    member this.DeletePinnedChannelMessage (channelid : Snowflake, messageid : Snowflake) = 
-        let endpoint = String.Format("/channels/{0}/pins/{1}", channelid, messageid)
-        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
+    member this.DeletePinnedChannelMessage chid mgid = 
+        restDelThunk<unit> token <| channelPinEndpoint chid mgid <| None
 
     /// Adds a recipient to a Group DM using their access token.
-    member this.GroupDMAddRecipient (channelid : Snowflake, userid : Snowflake, 
-                                     jsonParams : WebGroupDMAddRecipientParams) = 
-        let endpoint = String.Format("/channels/{0}/recipients/{1}", channelid, userid)
-        api.PUT(endpoint, "") |> Async.RunSynchronously |> ignore
+    member this.GroupDMAddRecipient chid mgid (args : WebGroupDMAddRecipientParams option) =
+        restPutThunk<_> token <| channelRoutingEndpoint chid mgid <| args
     
     /// Removes a recipient from a Group DM.
-    member this.GroupDMRemoveRecipient (channelid : Snowflake, userid : Snowflake) =
-        let endpoint = String.Format("/channels/{0}/recipients/{1}", channelid, userid)
-        api.DELETE(endpoint) |> Async.RunSynchronously |> ignore
+    member this.GroupDMRemoveRecipient chid mgid =
+        restDelThunk<unit> token <| channelRoutingEndpoint chid mgid <| None
 
     interface System.IDisposable with
         member this.Dispose () =
             (gw :> IDisposable).Dispose()
-            (api :> IDisposable).Dispose()
