@@ -7,12 +7,6 @@ open Newtonsoft.Json
 open FSharp.Data
 open HttpFs.Client
 
-// OP = opcode 
-// d = event data
-// s = sequence number
-// t = event name
-type Payload = {op : int; d : JObject; s : int option; t : string option}
-
 type Snowflake = uint64
 module Snowflake =
     let epoch = new DateTime(2015, 1, 1)
