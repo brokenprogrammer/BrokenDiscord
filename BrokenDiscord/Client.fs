@@ -116,7 +116,7 @@ type Client (token : string) =
             match args.richContent with
             | Some rc ->
                 [ for f in rc.files do
-                    yield FormData.FormFile("file", File(f.name, f.mime, StreamData f.content)) ]
+                    yield FormData.FormFile(f.name, File(f.name, f.mime, StreamData f.content)) ]
             | None -> []
             |> List.append
                 <| List.concat [
