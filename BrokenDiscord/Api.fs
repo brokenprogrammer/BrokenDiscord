@@ -7,6 +7,8 @@ open BrokenDiscord.Types
 open BrokenDiscord.Json.Json
 open Newtonsoft.Json
 
+open Chessie.ErrorHandling
+open Chessie.ErrorHandling.Trial
 open Hopac
 open Hopac.Infixes
 open HttpFs.Client
@@ -27,13 +29,13 @@ let private basePath = sprintf "https://discordapp.com/api/%s"
 module Response =
     let parseRtn<'t> r = 
         let s = Response.readBodyAsString r
-        try s >>- ofJson<'t> >>- Ok
-        with :? JsonException -> s >>- ofJson<ApiError> >>- Error
+        try s >>- ofJson<'t> >>- Result.Succeed
+        with :? JsonException -> s >>- ofJson<ApiError> >>- Result.FailWith
 
     let parseStat r = job {
             let stat = r.statusCode
-            if stat - 200 < 100 then return Ok ()
-            else return! Response.readBodyAsString r >>- ofJson<ApiError> >>- Error
+            if stat - 200 < 100 then return Result.Succeed <| ()
+            else return! Response.readBodyAsString r >>- ofJson<ApiError> >>- Result.FailWith
         }
 
 module Request =
