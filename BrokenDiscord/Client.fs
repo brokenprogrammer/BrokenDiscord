@@ -61,7 +61,7 @@ type Client (token : string) =
 
     /// Get a channel by ID. Returns a channel object.
 
-    member this.GetChannel (chid : Snowflake) = 
+    member this.GetChannel chid = 
         restGetCall<unit,Channel> token <| channelEndpoint chid <| None
     
     /// Update a channels settings. Returns a channel on success, 
@@ -135,7 +135,11 @@ type Client (token : string) =
     /// Deletes another user's reaction. 
     member this.DeleteUserReaction chid mgid uid emote =
         restDelThunk<unit> token <| userReactionsEndpoint chid mgid emote (Uid uid)
-
+    
+    /// Delete a reaction the current user has made for the message.
+    member this.DeleteOwnReaction chid mgid emote = 
+        restDelThunk token <| userReactionsEndpoint chid mgid emote Me <| None
+    
     /// Get a list of users that reacted with this emoji. 
     /// Returns an array of user objects on success.
     member this.GetReactions chid mgid emote (args : WebGetReactionsParams option) =
@@ -150,10 +154,6 @@ type Client (token : string) =
     member this.EditMessage chid mgid (args : WebEditMessageParams) =
         restPutCall<_,Message> token <| messageEndpoint chid mgid <| Some args
 
-    /// Delete a reaction the current user has made for the message.
-    member this.DeleteOwnReaction chid mgid emote = 
-        restDelThunk token <| userReactionsEndpoint chid mgid emote Me <| None
-    
     /// Delete a message.
     member this.DeleteMessage chid mgid = 
         restDelCall<unit,Message> token <| messageEndpoint chid mgid

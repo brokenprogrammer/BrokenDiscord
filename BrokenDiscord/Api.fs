@@ -24,7 +24,6 @@ let private setHeaders token req =
 
 let private basePath = sprintf "https://discordapp.com/api/%s"
 
-
 module Response =
     let parseRtn<'t> r = 
         let s = Response.readBodyAsString r
