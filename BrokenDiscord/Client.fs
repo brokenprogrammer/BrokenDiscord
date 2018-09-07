@@ -102,7 +102,7 @@ type Client (token : string) =
         restGetCall<unit,Message> token <| messageEndpoint chid mgid <| None
     
     /// Post a message to a guild text or DM channel.
-    member this.CreateMessage (chid : Snowflake) (mgid : Snowflake) (args : MessageCreate.T) =
+    member this.CreateMessage (chid : Snowflake) (args : MessageCreate.T) =
         //TODO: Might have to be restructured to work with uploading files.
         let unwrap = function Some x -> [x] | None -> []
         let body =
