@@ -167,7 +167,7 @@ type Client (token : string) =
         
     /// Deletes another user's reaction. 
     member this.DeleteUserReaction chid mgid uid emote =
-        restDelThunk<unit> token <| userReactionsEndpoint chid mgid emote (Uid uid)
+        restDelThunk<unit> token <| userReactionsEndpoint chid mgid emote (Uid uid) <| None
     
     /// Delete a reaction the current user has made for the message.
     member this.DeleteOwnReaction chid mgid emote = 
@@ -189,11 +189,11 @@ type Client (token : string) =
 
     /// Delete a message.
     member this.DeleteMessage chid mgid = 
-        restDelCall<unit,Message> token <| messageEndpoint chid mgid
+        restDelCall<unit,Message> token <| messageEndpoint chid mgid <| None
 
     /// Delete multiple messages in a single request.
     member this.BulkDeleteMessages chid (mgids: Snowflake[]) =
-        restPostCall<Snowflake[], unit> token <| bulkDeleteEndpoint chid
+        restPostCall<Snowflake[], unit> token <| bulkDeleteEndpoint chid <| None
 
     /// Edit the channel permission overwrites for a user or role in a channel.
     member this.EditChannelPermissions
