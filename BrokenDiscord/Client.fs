@@ -150,7 +150,6 @@ type Client (token : string) =
     
     /// Post a message to a guild text or DM channel.
     member this.CreateMessage (chid : Snowflake) (args : MessageCreate) =
-        //TODO: Might have to be restructured to work with uploading files.
         let unwrap = function Some x -> [x] | None -> []
         let body =
             let rc = 
