@@ -778,7 +778,7 @@ type ExecuteWebhook = {
     }
 
 type ApiError =
-    { code : uint32; message : string }
+    { code : uint32; message : string option }
     
 exception ApiException of ApiError
 
