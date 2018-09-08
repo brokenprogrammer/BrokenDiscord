@@ -65,7 +65,6 @@ module RatelimError =
 
 module Response =
     open Chessie.Hopac
-    open Chessie.Hopac
 
     let rateCk r =
         job {
