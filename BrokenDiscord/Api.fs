@@ -80,7 +80,10 @@ module Response =
         if r.statusCode = 429 then
             let cessation =
                 Response.readBodyAsString r >>- ofJson<RatelimError>
-                >>- RatelimError.cessation r.responseUri.LocalPath
+                >>- RatelimError.cessation
+                    (sprintf "%s/%s"
+                        <| r.responseUri.Host
+                        <| String.concat "/" r.responseUri.Segments)
             cessation >>= Ratelimiting.notify |> Job.startIgnore |> ignore
             cessation >>- FSharp.Core.Result.Error
         else Job.result <| FSharp.Core.Ok r
