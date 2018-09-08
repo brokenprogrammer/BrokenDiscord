@@ -7,6 +7,9 @@ open Newtonsoft.Json
 open FSharp.Data
 open HttpFs.Client
 
+type IMentionable =
+    abstract member Mention : string
+
 type Snowflake = uint64
 module Snowflake =
     let epoch = new DateTime(2015, 1, 1)
@@ -29,6 +32,7 @@ type PermsTarget =
         match x with User -> "user" | Role -> "role"
     member __.OfString =
         function "user" -> User | "role" -> Role
+    
 
 [<Flags>]
 type Perms =
@@ -90,6 +94,11 @@ type User = {
         verified        : bool option
         email           : string option
     }
+    with
+    member x.NickMention = sprintf "<@!%d>" x.id
+    interface IMentionable with
+        member x.Mention = sprintf "<@%d>" x.id
+            
 
 type Prune = {
         pruned : int
@@ -161,6 +170,9 @@ type Role = {
         managed     : bool
         mentionable : bool
     }
+    with
+    interface IMentionable with
+        member x.Mention = sprintf "<@&%d>" x.id
 
 type CreateRole = {
         name        : string option
@@ -186,25 +198,28 @@ type ChannelKind =
     | GuildCategory = 4
     
 type Channel = {
-    id                      : Snowflake
-    [<JsonProperty "type">]
-    kind                    : ChannelKind
-    guildId                 : Snowflake option
-    position                : int option
-    permissionOverwrites    : Overwrite[]
-    name                    : string option
-    topic                   : string option
-    nsfw                    : bool option
-    lastMessageId           : Snowflake option
-    bitrate                 : int option
-    userLimit               : int option
-    recipients              : User[]
-    icon                    : string option
-    ownerId                 : Snowflake option
-    applicationId           : Snowflake option
-    parentId                : Snowflake option
-    lastPinTimestamp        : DateTime option
-}
+        id                      : Snowflake
+        [<JsonProperty "type">]
+        kind                    : ChannelKind
+        guildId                 : Snowflake option
+        position                : int option
+        permissionOverwrites    : Overwrite[]
+        name                    : string option
+        topic                   : string option
+        nsfw                    : bool option
+        lastMessageId           : Snowflake option
+        bitrate                 : int option
+        userLimit               : int option
+        recipients              : User[]
+        icon                    : string option
+        ownerId                 : Snowflake option
+        applicationId           : Snowflake option
+        parentId                : Snowflake option
+        lastPinTimestamp        : DateTime option
+    } with
+    interface IMentionable with
+        member x.Mention = sprintf "<#%d>" x.id
+    
 
 type EmbedThumbnail = {
         url         : string option
@@ -292,6 +307,15 @@ type Emoji = {
     static member CreateOfUnicode unicode = { Emoji.Empty with name=unicode}
     static member CreateOfNameId name id = {Emoji.Empty with id = id; name = name}
     static member CreateAnimated name id animated = {Emoji.Empty with id = id; name = name; animated = animated}
+    
+    interface IMentionable with
+        member x.Mention =
+            match x.id with
+            | Some id ->
+                sprintf "<%s:%s:%d>"
+                <| if Option.defaultValue false x.animated then "a" else ""
+                <| x.name <| id
+            | _ -> x.name
 
 type Reaction = {
         count   : int
