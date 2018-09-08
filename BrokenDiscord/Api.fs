@@ -78,12 +78,15 @@ module Response =
 
     let rateCk r =
         if r.statusCode = 429 then
+            let route =
+                let path =
+                    r.responseUri.Segments 
+                    |> Seq.map (String.filter ((<>) '/'))
+                    |> String.concat "/"
+                sprintf "%s/%s" r.responseUri.Host path
             let cessation =
                 Response.readBodyAsString r >>- ofJson<RatelimError>
-                >>- RatelimError.cessation
-                    (sprintf "%s/%s"
-                        <| r.responseUri.Host
-                        <| String.concat "/" r.responseUri.Segments)
+                >>- RatelimError.cessation route
             cessation >>= Ratelimiting.notify |> Job.startIgnore |> ignore
             cessation >>- FSharp.Core.Result.Error
         else Job.result <| FSharp.Core.Ok r
