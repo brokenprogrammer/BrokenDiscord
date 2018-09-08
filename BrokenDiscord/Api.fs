@@ -7,13 +7,12 @@ open BrokenDiscord.Types
 open BrokenDiscord.Json.Json
 open Newtonsoft.Json
 
-open Chessie.ErrorHandling
-open Chessie.ErrorHandling.Trial
 open Hopac
-open Hopac.Infixes
 open HttpFs.Client
 open Chessie.Hopac.JobTrial
-    
+open Chessie.ErrorHandling
+open Hopac.Infixes
+
 let private userAgent =
     sprintf "DiscordBot (%s, %s)"
     <| "https://github.com/brokenprogrammer/BrokenDiscord"
@@ -27,25 +26,35 @@ let private setHeaders token req =
 let private basePath = sprintf "https://discordapp.com/api/%s"
 
 module Ratelimiting =
+    open Hopac
     type Target = Global | Route of string
-    type Cessation = Target * DateTime
-    let private cessations = new Mailbox<Cessation> ()
-    let mutable private cache : Map<Target, DateTime> = Map.empty
+    type Cessation = 
+        { target : Target; release : DateTime }
+        with
+        member x.Timeout =
+            let span = x.release - DateTime.Now
+            if TimeSpan(0L) < span then Alt.zero () else timeOut span
+            
+    let private inbox = new Ch<Cessation> ()
+    let mutable private cache = Map.empty
     let private bulletin = new Event<Cessation> ()
-    let private pager =
+    let cessationNotifier =
         job {
             while true do
-                let! cessation = Mailbox.take cessations
-                let target, release = cessation
+                let! cessation = Ch.take inbox
+                let { target=target; release=release } = cessation
                 cache <- Map.add target release cache
                 bulletin.Trigger cessation
-                do! timeOut (DateTime.Now - release)
+                do! cessation.Timeout
                 cache <- Map.remove target cache
         }
-    pager |> Job.startIgnore |> ignore
-    let events = bulletin.Publish
     let ceased = cache
-    let throttle = Mailbox.send cessations
+    let cessations = bulletin.Publish
+    let notify x =
+        new Promise<unit>(Ch.send inbox x)
+        |> Promise.read <|> x.Timeout
+
+open Ratelimiting
     
 type RatelimError =
     { [<JsonProperty "retry_after">]
@@ -55,43 +64,43 @@ type RatelimError =
       
 module RatelimError =
     let cessation route x = 
-        let target =
-            if x._global then Ratelimiting.Target.Global
-            else Ratelimiting.Target.Route route
-        target, TimeSpan.FromMilliseconds
-                <| float x.retry_ms |> (+) DateTime.Now
+        {   target = 
+                if x._global then Ratelimiting.Target.Global
+                else Ratelimiting.Target.Route route
+            release = 
+                float x.retry_ms
+                |> TimeSpan.FromMilliseconds
+                |> (+) DateTime.Now
+        }
  
 module Response =
     open Chessie.Hopac
 
     let rateCk r =
-        job {
-            if r.statusCode = 429 then
-                let cessation =
-                    Response.readBodyAsString r >>- ofJson<RatelimError>
-                    >>- RatelimError.cessation r.responseUri.LocalPath
-                do! cessation >>= Ratelimiting.throttle
-                return! cessation >>- FSharp.Core.Result.Error
-            else return FSharp.Core.Ok r
-        }
+        if r.statusCode = 429 then
+            let cessation =
+                Response.readBodyAsString r >>- ofJson<RatelimError>
+                >>- RatelimError.cessation r.responseUri.LocalPath
+            cessation >>= Ratelimiting.notify |> Job.startIgnore |> ignore
+            cessation >>- FSharp.Core.Result.Error
+        else Job.result <| FSharp.Core.Ok r
     
     let errCk r =
-        job {
-            if r.statusCode - 200 >= 100 then
-                return! Response.readBodyAsString r >>- ofJson<ApiError> >>- Result.FailWith
-            else return Result.Succeed r
-        }
+        if r.statusCode - 200 < 100 && r.statusCode <> 429 then
+            Job.result <| Result.Succeed r
+        else Response.readBodyAsString r 
+                >>- ofJson<ApiError>
+                >>- (fun x -> (r.statusCode, x))
+                >>- Result.FailWith
     
-    let rateGuard r =
-        job {
+    let rateGuard r = job {
             let! r = getResponse r >>= rateCk
-            let rec lp () = 
+            let rec lp () =
                 match r with
-                | FSharp.Core.Ok rsp -> Job.result <| rsp
-                | Error (route, release) ->
-                    job {
-                        do! timeOut (release-DateTime.Now)
-                        return! lp ()
+                | FSharp.Core.Ok rsp -> Job.result rsp
+                | Error cessation -> job {
+                        do! notify cessation
+                        return! cessation.Timeout >>= lp
                     }
             return! lp ()
         }
