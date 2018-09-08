@@ -23,7 +23,7 @@ let private setHeaders token req =
     |> Request.setHeader (Authorization (sprintf "Bot %s" token))
     |> Request.setHeader (UserAgent userAgent)
 
-let private basePath = sprintf "https://discordapp.com/api/%s"
+let private basePath = sprintf "https://discordapp.com/api/v6/%s"
 
 module Ratelimiting =
     open Hopac
@@ -99,18 +99,18 @@ module Response =
                 >>- (fun x -> (r.statusCode, x))
                 >>- Result.FailWith
     
-    let rateGuard r = job {
-            let rec lp req = job {
-                    let! rsp = getResponse req >>= rateCk
-                    match rsp with
-                    | FSharp.Core.Ok rsp -> return rsp
-                    | Error cessation ->
-                            do! notify cessation
-                            do! cessation.Timeout
-                            return! lp req
-                }
-            return! lp r
+    
+    let rateGuard r = 
+        let rec lp req = job {
+            let! rsp = getResponse req >>= rateCk
+            match rsp with
+            | FSharp.Core.Ok rsp -> return rsp
+            | Error cessation ->
+                do! notify cessation
+                do! cessation.Timeout
+                return! lp req
         }
+        lp r
         
     let parseRtn<'t> r =
         rateGuard r >>= errCk |> ofJobOfResult
@@ -125,14 +125,20 @@ module Response =
 module Request =
     let jsonBody<'t> (x : 't option) =
         match x with
-        | Some x -> Request.bodyString (toJson x)
+        | Some x ->
+            Request.bodyString (toJson x)
+            >> Request.setHeader
+                (ContentType <| ContentType.create ("application", "json"))
         | _ when typeof<'t> = typeof<unit> -> id
         | None -> id
     
     let enqueue<'i> token method path (body: 'i option) =
-        Request.createUrl method <| basePath path
-        |> setHeaders token
-        |> jsonBody<'i> body
+        let rtn = 
+            Request.createUrl method <| basePath path
+            |> setHeaders token
+            |> jsonBody<'i> body
+        printfn "%A" rtn
+        rtn
         
     let call<'i, 'o> token method path body =
         enqueue<'i> token method path body |> Response.parseRtn<'o>
