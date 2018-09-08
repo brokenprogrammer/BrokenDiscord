@@ -1,4 +1,4 @@
-﻿namespace BrokenDiscord.Test.AssemblyInfo
+﻿namespace BrokenDicord.Test.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices

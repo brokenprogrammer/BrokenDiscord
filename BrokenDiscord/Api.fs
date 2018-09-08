@@ -30,11 +30,9 @@ module Response =
         if r.statusCode-200 < 100 then s >>- ofJson<'t> >>- Ok
         else s >>- ofJson<ApiError> >>- Error
 
-    let parseStat r = job {
-            let stat = r.statusCode
-            if stat - 200 < 100 then return Ok ()
-            else return! Response.readBodyAsString r >>- ofJson<ApiError> >>- Error
-        }
+    let parseStat r =
+        if r.statusCode-200 < 100 then Ok () |> Job.result
+        else Response.readBodyAsString r >>- ofJson<ApiError> >>- Error
 
 module Request =
     let jsonBody<'t> (x : 't option) =
