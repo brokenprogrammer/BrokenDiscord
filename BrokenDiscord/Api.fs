@@ -94,15 +94,16 @@ module Response =
                 >>- Result.FailWith
     
     let rateGuard r = job {
-            let! r = getResponse r >>= rateCk
-            let rec lp () =
-                match r with
-                | FSharp.Core.Ok rsp -> Job.result rsp
-                | Error cessation -> job {
-                        do! notify cessation
-                        return! cessation.Timeout >>= lp
-                    }
-            return! lp ()
+            let rec lp req = job {
+                    let! rsp = getResponse req >>= rateCk
+                    match rsp with
+                    | FSharp.Core.Ok rsp -> return rsp
+                    | Error cessation ->
+                            do! notify cessation
+                            do! cessation.Timeout
+                            return! lp req
+                }
+            return! lp r
         }
         
     let parseRtn<'t> r =
