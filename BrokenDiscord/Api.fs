@@ -45,7 +45,7 @@ module Ratelimiting =
         }
     pager |> Job.startIgnore |> ignore
     let events = bulletin.Publish
-    let ceased = cache.TryFind
+    let ceased = cache
     let throttle = Mailbox.send cessations
     
 type RatelimError =
