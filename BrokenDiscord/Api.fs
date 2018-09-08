@@ -27,14 +27,12 @@ let private basePath = sprintf "https://discordapp.com/api/%s"
 module Response =
     let parseRtn<'t> r = 
         let s = Response.readBodyAsString r
-        try s >>- ofJson<'t> >>- Ok
-        with :? JsonException -> s >>- ofJson<ApiError> >>- Error
+        if r.statusCode - 200 < 100 then s >>- ofJson<'t> >>- Ok
+        else s >>- ofJson<ApiError> >>- Error
 
-    let parseStat r = job {
-            let stat = r.statusCode
-            if stat - 200 < 100 then return Ok ()
-            else return! Response.readBodyAsString r >>- ofJson<ApiError> >>- Error
-        }
+    let parseStat r =
+        if r.statusCode - 200 < 100 then Job.result <| Ok ()
+        else Response.readBodyAsString r >>- ofJson<ApiError> >>- Error
 
 module Request =
     let jsonBody<'t> (x : 't option) =
