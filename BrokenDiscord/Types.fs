@@ -771,6 +771,36 @@ type HistoryParams =
                     | Around _ -> failwith "Direction.Around is not scrollable."
                 limit = this.limit - n }
 
+type Webhook = {
+        id          : Snowflake
+        guild_id    : Snowflake option
+        channel_id  : Snowflake option
+        user        : User option
+        name        : string option
+        avatar      : string option
+        token       : string option
+    }
+
+type CreateWebhook = {
+        name    : string
+        avatar  : string
+    }
+
+type ModifyWebhook = {
+        name        : string option
+        avatar      : string option
+        channel_id  : Snowflake option
+    }
+
+type ExecuteWebhook = {
+        content     : string
+        username    : string
+        avatar_url  : string
+        tts         : bool
+        file        : File
+        embeds      : Embed[]
+    }
+
 type ApiError =
     { code : uint32; message : string }
     
