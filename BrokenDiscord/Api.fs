@@ -19,7 +19,6 @@ let private userAgent =
     <| "https://github.com/brokenprogrammer/BrokenDiscord"
     <| "6"
 
-
 let private setHeaders token req =
     req
     |> Request.setHeader (Authorization (sprintf "Bot %s" token))
@@ -31,7 +30,7 @@ module Ratelimiting =
     type Target = Global | Route of string
     type Cessation = Target * DateTime
     let private cessations = new Mailbox<Cessation> ()
-    let mutable private cache : Map<Target, DateTime> = downcast dict []
+    let mutable private cache : Map<Target, DateTime> = Map.empty
     let private bulletin = new Event<Cessation> ()
     let private pager =
         job {
@@ -62,7 +61,6 @@ module RatelimError =
         target, TimeSpan.FromMilliseconds
                 <| float x.retry_ms |> (+) DateTime.Now
  
-
 module Response =
     open Chessie.Hopac
 
