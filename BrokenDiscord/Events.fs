@@ -35,7 +35,7 @@ type GuildEmojisUpdateMessage = {
     [<JsonProperty "guild_id">]
     guildId : Snowflake;
     [<JsonProperty "emojis">]
-    emojis : list<Emoji>
+    emojis : Emoji[]
 }
 
 type GuildMemberRemoveMessage = {
@@ -49,7 +49,7 @@ type GuildMemberUpdateMessage = {
     [<JsonProperty "guild_id">]
     guildId : Snowflake;
     [<JsonProperty "roles">]
-    roles : list<Snowflake>;
+    roles : Snowflake[];
     [<JsonProperty "user">]
     user : User
     [<JsonProperty "nick">]
@@ -60,7 +60,7 @@ type GuildMembersChunkMessage = {
     [<JsonProperty "guild_id">]
     guildId : Snowflake;
     [<JsonProperty "members">]
-    members : list<GuildMember>
+    members : GuildMember[]
 }
 
 type GuildRoleCreateMessage = {
@@ -93,7 +93,7 @@ type MessageDeleteMessage = {
 
 type MessageDeleteBulkMessage = {
     [<JsonProperty "ids">]
-    ids : list<Snowflake>;
+    ids : Snowflake[];
     [<JsonProperty "channel_id">]
     channelId : Snowflake;
 }
@@ -132,7 +132,7 @@ type PresenceUpdateMessage = {
     [<JsonProperty "user">]
     user : User;
     [<JsonProperty "roles">]
-    roles : list<Snowflake>;
+    roles : Snowflake[];
     [<JsonProperty "game">]
     game : Activity;
     [<JsonProperty "guild_id">]
