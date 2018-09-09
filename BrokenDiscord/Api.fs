@@ -99,18 +99,16 @@ module Response =
                 >>- (fun x -> (r.statusCode, x))
                 >>- Result.FailWith
     
-    
-    let rateGuard r = 
-        let rec lp req = job {
-                let! rsp = getResponse req >>= rateCk
-                match rsp with
-                    | FSharp.Core.Ok rsp -> return rsp
-                    | Error cessation -> 
-                        do! notify cessation |> Job.startIgnore
-                        do! cessation.Timeout
-                        return! lp req
-            }
-        lp r
+    let rec rateGuard req = 
+        job {
+            let! rsp = getResponse req >>= rateCk
+            match rsp with
+                | FSharp.Core.Ok rsp -> return rsp
+                | Error cessation -> 
+                    do! notify cessation |> Job.startIgnore
+                    do! cessation.Timeout
+                    return! rateGuard req
+        }
         
     let parseRtn<'t> r =
         rateGuard r >>= errCk |> ofJobOfResult
