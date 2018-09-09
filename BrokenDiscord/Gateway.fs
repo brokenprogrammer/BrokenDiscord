@@ -57,6 +57,7 @@ type Gateway () =
     let mutable socket : ClientWebSocket = new ClientWebSocket()
     let MAX_RECONNECTS = 6
 
+    let mutable tokenvalue = ""
     let mutable session_id = ""
     let mutable seq = -1
 
@@ -128,11 +129,44 @@ type Gateway () =
         | "VOICE_SERVER_UPDATE"         -> trigger VoiceServerUpdate
         | _                             -> () // TODO: Log Unhandled event
 
+    let Reconnect (token : string) (identify : bool) =
+        async {
+            if socket.State = WebSocketState.Closed then
+                socket.Dispose()
+            else 
+                do! WebSocket.close WebSocketCloseStatus.Empty "" socket
+                socket.Dispose()
+
+            socket <- new ClientWebSocket()
+            do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
+
+
+            let resume = 
+                async {
+                    let resume : ResumePacket = {token = token; session_id = session_id; seq = seq}
+                    do! Send(resume) |> Async.Ignore
+                }
+
+            let reidentify =
+                async {
+                    do! 5000 |> Task.Delay |> Async.AwaitTask |> Async.Ignore
+                    let identification = IdentifyPacket(token, 0, 1)
+                    do! Send(identification) |> Async.Ignore
+                }
+                
+            if identify then
+                do! reidentify
+            else
+                do! resume
+        }
+
     //TODO: better naming for this function
-    let parseMessage (payload : Payload) =
-        match payload.op with
+    let parseMessage (message : string) =
+        let op = JObject.Parse(message) |> ofJsonValue<int> "op" |> enum<OpCode>
+
+        match op with
         | OpCode.Dispatch -> 
-            handleDispatch payload
+            ofJson<Payload> message |> handleDispatch
         | OpCode.Heartbeat -> 1 |> ignore
         | OpCode.Identify -> 2 |> ignore
         | OpCode.StatusUpdate -> 3 |> ignore
@@ -141,32 +175,18 @@ type Gateway () =
         | OpCode.Resume -> 6 |> ignore
         | OpCode.Reconnect -> 7 |> ignore
         | OpCode.RequestGuildMembers -> 8 |> ignore
-        | OpCode.InvalidSession -> 9 |> ignore
-        | OpCode.Hello -> 
+        | OpCode.InvalidSession -> Reconnect tokenvalue true |> Async.RunSynchronously //9 |> ignore
+        | OpCode.Hello ->
+            let payload = ofJson<Payload> message
             let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
             heartbeat(heartbeatInterval) |> Async.Start
         | OpCode.HeartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
-    let Reconnect (token : string) =
-        async {
-            printf "Reconnecting\n"
-            if socket.State = WebSocketState.Closed then
-                socket.Dispose()
-            else 
-                socket.Abort()
-                socket.Dispose()
-
-            socket <- new ClientWebSocket()
-            do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
-
-            let resume : ResumePacket = {token = token; session_id = session_id; seq = seq}
-            do! Send(resume) |> Async.Ignore
-        }
-
     let Run (token : string) = 
         async {
-            
+            tokenvalue <- token
+
             do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
             
             let identification = IdentifyPacket(token, 0, 1)
@@ -175,12 +195,12 @@ type Gateway () =
             let rec running = 
                 async {
                     for i in 1..MAX_RECONNECTS do
-                        printf "Reconnect number: %d\n" i
                         while socket.State = WebSocketState.Open do
-                            let! payload =  WebSocket.receieveMessageUTF8 socket
-                            ofJson<Payload> payload |> parseMessage
-                    
-                        do! Reconnect token
+                            let! message =  WebSocket.receieveMessageUTF8 socket
+                            if message <> null && message <> String.Empty then
+                                parseMessage message
+                        
+                        do! Reconnect token false
                 }
             do! running
 
