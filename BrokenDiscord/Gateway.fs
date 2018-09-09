@@ -14,6 +14,8 @@ open BrokenDiscord.Json
 open BrokenDiscord.Json.Json
 open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
+open Hopac
+open Hopac.Infixes
     
 module Gateway =
     let mutable private socket : ClientWebSocket = new ClientWebSocket()
@@ -30,24 +32,17 @@ module Gateway =
     let private GatewayEvent = new Event<GatewayEvents>()
     
     [<CLIEvent>]
-    let  gatewayEvent = GatewayEvent.Publish
+    let gatewayEvent = GatewayEvent.Publish
 
-    let send (packet : ISerializable) = 
-        async {
-            do! WebSocket.sendMessageUTF8 (packet.Serialize()) socket
-        }
+    let send (packet : ISerializable) = Job.fromAsync <| WebSocket.sendMessageUTF8 (packet.Serialize()) socket
 
-    let rec heartbeat (interval : int) =
-        async {
-            do! interval |> Task.Delay |> Async.AwaitTask |> Async.Ignore
-            do! send(HeartbeatPacket(interval)) |> Async.Ignore
-            do! heartbeat interval
-        }
+    let rec heartbeat interval =
+        timeOutMillis interval
+        >>- (fun () -> HeartbeatPacket interval)
+        >>= send
 
     let handleDispatch (payload : Payload) =
-        match payload.s with 
-        | Some s -> seq <- s
-        | _ -> ()
+        seq <- Option.defaultValue seq payload.s
         
         let t = payload.t.Value
         if t = "READY" then
@@ -95,74 +90,59 @@ module Gateway =
         | "VOICE_SERVER_UPDATE"         -> trigger VoiceServerUpdate
         | _                             -> () // TODO: Log Unhandled event
 
-    let reconnect (token : string) (identify : bool) =
-        async {
+    let reconnect token identify =
+        job {
             match socket.State with
             | WebSocketState.Closed -> ()
             | _ -> do! WebSocket.close WebSocketCloseStatus.Empty "" socket
             socket.Dispose()
             
             socket <- new ClientWebSocket()
-            do! socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None) |> Async.AwaitTask
+            do! Job.awaitUnitTask <| socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None)
 
-            let resume = 
-                async {
-                    let resume : ResumePacket = {token = token; session_id = session_id; seq = seq}
-                    do! send(resume) |> Async.Ignore
-                }
+            let resume = send {token=token; session_id=session_id; seq=seq}
 
             let reidentify =
-                async {
-                    do! 5000 |> Task.Delay |> Async.AwaitTask |> Async.Ignore
-                    let identification = IdentifyPacket(token, 0, 1)
-                    do! send(identification) |> Async.Ignore
-                }
+                timeOutMillis 5000
+                >>- (fun () -> IdentifyPacket(token, 0, 1))
+                >>= send
                 
-            if identify then
-                do! reidentify
-            else
-                do! resume
+            do! if identify then reidentify else resume 
         }
 
-    let parse (message : string) =
+    let parse message =
         let op = JObject.Parse(message) |> ofJsonValue<int> "op" |> enum<OpCode>
         
         match op with
         | OpCode.Dispatch -> 
-            ofJson<Payload> message |> handleDispatch
-        | OpCode.Heartbeat -> 1 |> ignore
-        | OpCode.Identify -> 2 |> ignore
-        | OpCode.StatusUpdate -> 3 |> ignore
-        | OpCode.VoiceStateUpdate -> 4 |> ignore
-        | OpCode.VoiceServerPing -> 5 |> ignore
-        | OpCode.Resume -> 6 |> ignore
-        | OpCode.Reconnect -> 7 |> ignore
-        | OpCode.RequestGuildMembers -> 8 |> ignore
-        | OpCode.InvalidSession -> reconnect tokenvalue true |> Async.RunSynchronously
+            ofJson<Payload> message |> handleDispatch |> Job.result
+        | OpCode.Heartbeat              -> 1  |> ignore |> Job.result
+        | OpCode.Identify               -> 2  |> ignore |> Job.result
+        | OpCode.StatusUpdate           -> 3  |> ignore |> Job.result
+        | OpCode.VoiceStateUpdate       -> 4  |> ignore |> Job.result
+        | OpCode.VoiceServerPing        -> 5  |> ignore |> Job.result
+        | OpCode.Resume                 -> 6  |> ignore |> Job.result
+        | OpCode.Reconnect              -> 7  |> ignore |> Job.result
+        | OpCode.RequestGuildMembers    -> 8  |> ignore |> Job.result
+        | OpCode.HeartbeatACK           -> 11 |> ignore |> Job.result
+        | OpCode.InvalidSession         -> reconnect tokenvalue true
         | OpCode.Hello ->
             let payload = ofJson<Payload> message
             let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
-            heartbeat(heartbeatInterval) |> Async.Start
-        | OpCode.HeartbeatACK -> 11 |> ignore
-        | _ -> 0 |> ignore
+            heartbeat heartbeatInterval |> Job.startIgnore
+        | _ -> 0 |> ignore |> Job.result
 
-    let run (token : string) = 
-        async {
+    let run token = 
+        job {
             tokenvalue <- token
-
             do! socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None) |> Async.AwaitTask
-            
-            let identification = IdentifyPacket(token, 0, 1)
-            do! send(identification) |> Async.Ignore
+            do! send <| IdentifyPacket(token, 0, 1)
             
             for i in 1..MAX_RECONNECTS do
                 while socket.State = WebSocketState.Open do
                     let! message =  WebSocket.receieveMessageUTF8 socket
                     if message <> null && message <> String.Empty then
-                        parse message
-                        
+                        do! parse message
                 do! reconnect token false
-            
             socket.Dispose()
-            ()
         }
