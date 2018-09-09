@@ -57,6 +57,7 @@
     <Compile Include="Events.fs" />
     <Compile Include="WebSocket.fs" />
     <Compile Include="Json.fs" />
+    <Compile Include="Packets.fs" />
     <Compile Include="Gateway.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Client.fs" />

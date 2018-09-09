@@ -9,50 +9,12 @@ open Newtonsoft.Json.Linq
 
 open BrokenDiscord.Events
 open BrokenDiscord.Types
+open BrokenDiscord.Packets
 open BrokenDiscord.Json
 open BrokenDiscord.Json.Json
 open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
     
-type ISerializable =
-    abstract member Serialize : unit -> string
-
-type HeartbeatPacket (seq : int) =
-    member this.seq = seq
-
-    interface ISerializable with
-        member this.Serialize() =
-            let payload = {op = OpCode.Heartbeat; d = JObject.FromObject(this); s = None; t = None}
-            toJson payload
-
-type IdentifyPacket (token : string, shard : int, numshards : int) =
-    //TODO: Better way to construct the properties.
-    let getProperties = 
-        new JObject(new JProperty("$os", "linux"), 
-            new JProperty("$browser", "brokendiscord"), 
-            new JProperty("$device", "brokendiscord"))
-    
-    member this.token = token
-    member this.properties = getProperties
-    member this.compress = false //true TODO: Change this to true when zlib decompression has been added.
-    member this.large_threshold = 250
-    member this.shard =  [|shard; numshards|]
-
-    interface ISerializable with
-        member this.Serialize() =
-            let payload = {op = OpCode.Identify; d = JObject.FromObject(this); s = None; t = None}
-            toJson payload
-
-type ResumePacket = {
-        token : string
-        session_id : string
-        seq : int
-    } with
-    interface ISerializable with
-        member this.Serialize() =
-            let payload = {op = OpCode.Resume; d = JObject.FromObject(this); s = None; t = None}
-            toJson payload
-
 type Gateway () =
     let mutable socket : ClientWebSocket = new ClientWebSocket()
     let MAX_RECONNECTS = 6
@@ -163,7 +125,7 @@ type Gateway () =
     //TODO: better naming for this function
     let parseMessage (message : string) =
         let op = JObject.Parse(message) |> ofJsonValue<int> "op" |> enum<OpCode>
-
+        
         match op with
         | OpCode.Dispatch -> 
             ofJson<Payload> message |> handleDispatch
@@ -191,7 +153,7 @@ type Gateway () =
             
             let identification = IdentifyPacket(token, 0, 1)
             do! Send(identification) |> Async.Ignore
-
+            
             let rec running = 
                 async {
                     for i in 1..MAX_RECONNECTS do

@@ -1,6 +1,5 @@
 ﻿namespace BrokenDiscord.WebSockets
 
-
 module WebSocket =
     open System
     open System.IO
