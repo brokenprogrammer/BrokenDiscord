@@ -33,7 +33,7 @@ module Ratelimiting =
         with
         member x.Timeout =
             let span = x.release - DateTime.Now
-            if TimeSpan(0L) < span then Alt.zero () else timeOut span
+            if span < TimeSpan(0L) then Alt.zero () else timeOut span
             
     let private inbox = new Ch<Cessation> ()
     let mutable private cache = Map.empty
