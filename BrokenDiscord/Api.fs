@@ -102,14 +102,14 @@ module Response =
     
     let rateGuard r = 
         let rec lp req = job {
-            let! rsp = getResponse req >>= rateCk
-            match rsp with
-            | FSharp.Core.Ok rsp -> return rsp
-            | Error cessation ->
-                do! notify cessation
-                do! cessation.Timeout
-                return! lp req
-        }
+                let! rsp = getResponse req >>= rateCk
+                match rsp with
+                    | FSharp.Core.Ok rsp -> return rsp
+                    | Error cessation -> 
+                        do! notify cessation |> Job.startIgnore
+                        do! cessation.Timeout
+                        return! lp req
+            }
         lp r
         
     let parseRtn<'t> r =
@@ -133,12 +133,9 @@ module Request =
         | None -> id
     
     let enqueue<'i> token method path (body: 'i option) =
-        let rtn = 
-            Request.createUrl method <| basePath path
-            |> setHeaders token
-            |> jsonBody<'i> body
-        printfn "%A" rtn
-        rtn
+        Request.createUrl method <| basePath path
+        |> setHeaders token
+        |> jsonBody<'i> body
         
     let call<'i, 'o> token method path body =
         enqueue<'i> token method path body |> Response.parseRtn<'o>
