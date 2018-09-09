@@ -97,12 +97,11 @@ module Gateway =
 
     let reconnect (token : string) (identify : bool) =
         async {
-            if socket.State = WebSocketState.Closed then
-                socket.Dispose()
-            else 
-                do! WebSocket.close WebSocketCloseStatus.Empty "" socket
-                socket.Dispose()
-
+            match socket.State with
+            | WebSocketState.Closed -> ()
+            | _ -> do! WebSocket.close WebSocketCloseStatus.Empty "" socket
+            socket.Dispose()
+            
             socket <- new ClientWebSocket()
             do! socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None) |> Async.AwaitTask
 
