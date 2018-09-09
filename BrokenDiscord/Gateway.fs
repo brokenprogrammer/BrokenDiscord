@@ -15,18 +15,24 @@ open BrokenDiscord.Json.Json
 open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
     
-type Gateway () =
-    let mutable socket : ClientWebSocket = new ClientWebSocket()
-    let MAX_RECONNECTS = 6
+module Gateway =
+    let mutable private socket : ClientWebSocket = new ClientWebSocket()
+    let mutable private tokenvalue = ""
+    let mutable private session_id = ""
+    let mutable private seq = -1
 
-    let mutable tokenvalue = ""
-    let mutable session_id = ""
-    let mutable seq = -1
-
-    let gatewayURI = "wss://gateway.discord.gg/?v=6&encoding=json"
-    let gatewayEvent = new Event<GatewayEvents>()
+    [<Literal>]
+    let private MAX_RECONNECTS = 6
     
-    let Send (packet : ISerializable) = 
+    [<Literal>]
+    let private GatewayURI = "wss://gateway.discord.gg/?v=6&encoding=json"
+    
+    let private GatewayEvent = new Event<GatewayEvents>()
+    
+    [<CLIEvent>]
+    let  gatewayEvent = GatewayEvent.Publish
+
+    let send (packet : ISerializable) = 
         async {
             do! WebSocket.sendMessageUTF8 (packet.Serialize()) socket
         }
@@ -34,26 +40,24 @@ type Gateway () =
     let rec heartbeat (interval : int) =
         async {
             do! interval |> Task.Delay |> Async.AwaitTask |> Async.Ignore
-            do! Send(HeartbeatPacket(interval)) |> Async.Ignore
+            do! send(HeartbeatPacket(interval)) |> Async.Ignore
             do! heartbeat interval
         }
 
     let handleDispatch (payload : Payload) =
-        let t = payload.t.Value
-        
         match payload.s with 
-        | Some x -> seq <- x
+        | Some s -> seq <- s
         | _ -> ()
         
+        let t = payload.t.Value
         if t = "READY" then
             session_id <- (ofJsonValue "session_id" payload.d)
 
         let payloadData = payload.d
         let payloadJson = payloadData.ToString()
         
-        //TODO: Naming
         let trigger eventType =
-            ofJson payloadJson |> eventType |> gatewayEvent.Trigger
+            ofJson payloadJson |> eventType |> GatewayEvent.Trigger
 
         match t with
         | "READY"                       -> trigger Ready
@@ -91,7 +95,7 @@ type Gateway () =
         | "VOICE_SERVER_UPDATE"         -> trigger VoiceServerUpdate
         | _                             -> () // TODO: Log Unhandled event
 
-    let Reconnect (token : string) (identify : bool) =
+    let reconnect (token : string) (identify : bool) =
         async {
             if socket.State = WebSocketState.Closed then
                 socket.Dispose()
@@ -100,20 +104,19 @@ type Gateway () =
                 socket.Dispose()
 
             socket <- new ClientWebSocket()
-            do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
-
+            do! socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None) |> Async.AwaitTask
 
             let resume = 
                 async {
                     let resume : ResumePacket = {token = token; session_id = session_id; seq = seq}
-                    do! Send(resume) |> Async.Ignore
+                    do! send(resume) |> Async.Ignore
                 }
 
             let reidentify =
                 async {
                     do! 5000 |> Task.Delay |> Async.AwaitTask |> Async.Ignore
                     let identification = IdentifyPacket(token, 0, 1)
-                    do! Send(identification) |> Async.Ignore
+                    do! send(identification) |> Async.Ignore
                 }
                 
             if identify then
@@ -122,8 +125,7 @@ type Gateway () =
                 do! resume
         }
 
-    //TODO: better naming for this function
-    let parseMessage (message : string) =
+    let parse (message : string) =
         let op = JObject.Parse(message) |> ofJsonValue<int> "op" |> enum<OpCode>
         
         match op with
@@ -137,7 +139,7 @@ type Gateway () =
         | OpCode.Resume -> 6 |> ignore
         | OpCode.Reconnect -> 7 |> ignore
         | OpCode.RequestGuildMembers -> 8 |> ignore
-        | OpCode.InvalidSession -> Reconnect tokenvalue true |> Async.RunSynchronously //9 |> ignore
+        | OpCode.InvalidSession -> reconnect tokenvalue true |> Async.RunSynchronously
         | OpCode.Hello ->
             let payload = ofJson<Payload> message
             let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
@@ -145,36 +147,23 @@ type Gateway () =
         | OpCode.HeartbeatACK -> 11 |> ignore
         | _ -> 0 |> ignore
 
-    let Run (token : string) = 
+    let run (token : string) = 
         async {
             tokenvalue <- token
 
-            do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
+            do! socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None) |> Async.AwaitTask
             
             let identification = IdentifyPacket(token, 0, 1)
-            do! Send(identification) |> Async.Ignore
+            do! send(identification) |> Async.Ignore
             
-            let rec running = 
-                async {
-                    for i in 1..MAX_RECONNECTS do
-                        while socket.State = WebSocketState.Open do
-                            let! message =  WebSocket.receieveMessageUTF8 socket
-                            if message <> null && message <> String.Empty then
-                                parseMessage message
+            for i in 1..MAX_RECONNECTS do
+                while socket.State = WebSocketState.Open do
+                    let! message =  WebSocket.receieveMessageUTF8 socket
+                    if message <> null && message <> String.Empty then
+                        parse message
                         
-                        do! Reconnect token false
-                }
-            do! running
-
+                do! reconnect token false
+            
+            socket.Dispose()
             ()
         }
-
-    // Test method that calls the Run function with the target websocket uri
-    member this.connect (token : string) = Run token
-
-    [<CLIEvent>]
-    member this.GatewayEvent = gatewayEvent.Publish
-
-    interface IDisposable with
-        member this.Dispose() = 
-            socket.Dispose()

@@ -90,17 +90,14 @@ let private webhookGitHubEndpoint hookid hooktoken =
 
 type Client (token : string) =
     let token = token
-    let gw = new Gateway()
-    
-    let mutable Sessionid = 0
 
     member val GatewayVersion = 0 with get, set
     member val PrivateChannels = [] with get, set
     member val Guilds = [] with get,set
     
-    member val Events = gw.GatewayEvent
+    member val Events = Gateway.gatewayEvent
     
-    member this.login() = token |> gw.connect |> Async.RunSynchronously
+    member this.start() = token |> Gateway.run |> Async.RunSynchronously
 
     /// Get a channel by ID. Returns a channel object.
 
@@ -528,4 +525,4 @@ type Client (token : string) =
 
     interface System.IDisposable with
         member this.Dispose () =
-            (gw :> IDisposable).Dispose()
+            ()
