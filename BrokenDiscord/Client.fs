@@ -97,7 +97,7 @@ type Client (token : string) =
     
     member val Events = Gateway.gatewayEvent
     
-    member this.start() = token |> Gateway.run |> Async.RunSynchronously
+    member this.start() = token |> Gateway.run |> run
 
     /// Get a channel by ID. Returns a channel object.
 

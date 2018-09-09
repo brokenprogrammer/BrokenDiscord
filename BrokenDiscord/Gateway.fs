@@ -34,7 +34,7 @@ module Gateway =
     [<CLIEvent>]
     let gatewayEvent = GatewayEvent.Publish
 
-    let send (packet : ISerializable) = Job.fromAsync <| WebSocket.sendMessageUTF8 (packet.Serialize()) socket
+    let send (packet : ISerializable) = WebSocket.sendMessageUTF8 (packet.Serialize()) socket
 
     let rec heartbeat interval =
         timeOutMillis interval
@@ -140,7 +140,7 @@ module Gateway =
             
             for i in 1..MAX_RECONNECTS do
                 while socket.State = WebSocketState.Open do
-                    let! message =  WebSocket.receieveMessageUTF8 socket
+                    let! message = WebSocket.receiveMessageUTF8 socket
                     if message <> null && message <> String.Empty then
                         do! parse message
                 do! reconnect token false
