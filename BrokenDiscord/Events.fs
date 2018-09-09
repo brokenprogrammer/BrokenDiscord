@@ -25,6 +25,19 @@ type OpCode =
 // t = event name
 type Payload = {op : OpCode; d : JObject; s : int option; t : string option}
 
+type ReadyMessage = {
+    [<JsonProperty "v">]
+    version : int
+    user : User
+    guilds : Guild[]
+    session_id : string
+    _trace : string[]
+}
+
+type ResumeMessage = {
+    _trace : string[]
+}
+
 type ChannelPinsUpdateMessage = {
     [<JsonProperty "channel_id">]
     channelId : Snowflake;
@@ -167,8 +180,8 @@ type VoiceServerUpdateMessage = {
 }
 
 type GatewayEvents =
-    | Ready of Payload
-    | Resume of Payload
+    | Ready of ReadyMessage
+    | Resume of ResumeMessage
     | ChannelCreate of Channel
     | ChannelUpdate of Channel
     | ChannelDelete of Channel
