@@ -39,7 +39,7 @@ module Gateway =
     let rec heartbeat interval =
         timeOutMillis interval
         >>- (fun () -> HeartbeatPacket interval)
-        >>= send
+        >>= send >>- (fun () -> interval) >>= heartbeat
 
     let handleDispatch (payload : Payload) =
         seq <- Option.defaultValue seq payload.s
