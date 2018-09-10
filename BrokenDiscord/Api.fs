@@ -28,13 +28,16 @@ let private basePath = sprintf "https://discordapp.com/api/v6/%s"
 module Ratelimiting =
     open Hopac
     type Target = Global | Route of string
-    let route (u : Uri) =
+    
+    let routeStr (u : Uri) =
         let path =
             u.Segments 
             |> Seq.map (String.filter ((<>) '/'))
             |> Seq.filter ((<>) "")
             |> String.concat "/"
         sprintf "%s/%s" u.Host path      
+    
+    let routeFrom u = Route <| routeStr u
         
     type Cessation = 
         { target : Target; release : DateTime }
@@ -61,6 +64,11 @@ module Ratelimiting =
     let notify x =
         new Promise<unit>(Ch.send inbox x)
         |> Promise.read <|> x.Timeout
+        
+    let backoffTimeout (route : Target) =
+        match cache.TryFind route with 
+        | Some release -> { target=route; release=release}.Timeout
+        | None -> Alt.once ()
 
 open Ratelimiting
     
@@ -83,12 +91,13 @@ module RatelimError =
  
 module Response =
     open Chessie.Hopac
+    open HttpFs.Client
 
     let rateCk r =
         if r.statusCode = 429 then
             let cessation =
                 Response.readBodyAsString r >>- ofJson<RatelimError>
-                >>- RatelimError.cessation (route r.responseUri)
+                >>- RatelimError.cessation (routeStr r.responseUri)
             cessation >>= Ratelimiting.notify |> Job.startIgnore |> ignore
             cessation >>- FSharp.Core.Result.Error
         else Job.result <| FSharp.Core.Ok r
@@ -101,8 +110,10 @@ module Response =
                 >>- (fun x -> (r.statusCode, x))
                 >>- Result.FailWith
     
-    let rec rateGuard req = 
+    let rec rateGuard (req : Request) = 
         job {
+            do! backoffTimeout Global
+            do! backoffTimeout (Route <| routeStr req.url)
             let! rsp = getResponse req >>= rateCk
             match rsp with
                 | FSharp.Core.Ok rsp -> return rsp
