@@ -62,6 +62,14 @@
     <Compile Include="Client.fs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Chessie, Version=0.6.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Chessie.0.6.0\lib\net40\Chessie.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Chessie.Hopac, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Chessie.Hopac.0.5.0\lib\net461\Chessie.Hopac.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Fable.JsonConverter">
       <HintPath>..\packages\Fable.JsonConverter.1.0.8\lib\net45\Fable.JsonConverter.dll</HintPath>
     </Reference>
