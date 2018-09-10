@@ -135,7 +135,7 @@ module Gateway =
     let run token = 
         job {
             tokenvalue <- token
-            do! socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None) |> Async.AwaitTask
+            do! Job.awaitUnitTask <| socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None)
             do! send <| IdentifyPacket(token, 0, 1)
             
             for i in 1..MAX_RECONNECTS do
