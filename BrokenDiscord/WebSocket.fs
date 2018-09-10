@@ -66,7 +66,7 @@ let receiveMessage cancellationToken bufferSize messageType (toStream : IO.Strea
                 | result ->
                     if result.MessageType <> messageType then return ()
                     
-                    do! toStream.AsyncWrite(buffer.Array,buffer.Offset,result.Count)
+                    do! Job.fromAsync <| toStream.AsyncWrite(buffer.Array,buffer.Offset,result.Count)
                     if result.EndOfMessage then
                         return false
                     else return! recvToEnd ()
