@@ -2,10 +2,12 @@
 
 open System
 
-open Newtonsoft.Json.Linq
 open Newtonsoft.Json
 open FSharp.Data
 open HttpFs.Client
+
+type ISerializable =
+    abstract member Serialize : unit -> string
 
 type IMentionable =
     abstract member Mention : string
@@ -269,7 +271,7 @@ type EmbedField = {
 type Embed = {
         title       : string option
         [<JsonProperty "type">]
-        kind        : ChannelKind
+        kind        : string option
         description : string option
         url         : string option
         timestamp   : DateTime option
@@ -802,7 +804,7 @@ type ExecuteWebhook = {
     }
 
 type ApiError =
-    { code : uint32; message : string }
+    { code : uint32; message : string option }
     
 exception ApiException of ApiError
 

@@ -5,25 +5,18 @@ open System
 open Newtonsoft.Json
 open Newtonsoft.Json.Linq
 
-type OpCode = 
-    | Dispatch = 0
-    | Heartbeat = 1
-    | Identify = 2
-    | StatusUpdate = 3
-    | VoiceStateUpdate = 4
-    | VoiceServerPing = 5
-    | Resume = 6
-    | Reconnect = 7
-    | RequestGuildMembers = 8
-    | InvalidSession = 9
-    | Hello = 10
-    | HeartbeatACK = 11
+type ReadyMessage = {
+    [<JsonProperty "v">]
+    version : int
+    user : User
+    guilds : Guild[]
+    session_id : string
+    _trace : string[]
+}
 
-// OP = opcode 
-// d = event data
-// s = sequence number
-// t = event name
-type Payload = {op : OpCode; d : JObject; s : int option; t : string option}
+type ResumeMessage = {
+    _trace : string[]
+}
 
 type ChannelPinsUpdateMessage = {
     [<JsonProperty "channel_id">]
@@ -42,7 +35,7 @@ type GuildEmojisUpdateMessage = {
     [<JsonProperty "guild_id">]
     guildId : Snowflake;
     [<JsonProperty "emojis">]
-    emojis : list<Emoji>
+    emojis : Emoji[]
 }
 
 type GuildMemberRemoveMessage = {
@@ -56,7 +49,7 @@ type GuildMemberUpdateMessage = {
     [<JsonProperty "guild_id">]
     guildId : Snowflake;
     [<JsonProperty "roles">]
-    roles : list<Snowflake>;
+    roles : Snowflake[];
     [<JsonProperty "user">]
     user : User
     [<JsonProperty "nick">]
@@ -67,7 +60,7 @@ type GuildMembersChunkMessage = {
     [<JsonProperty "guild_id">]
     guildId : Snowflake;
     [<JsonProperty "members">]
-    members : list<GuildMember>
+    members : GuildMember[]
 }
 
 type GuildRoleCreateMessage = {
@@ -100,7 +93,7 @@ type MessageDeleteMessage = {
 
 type MessageDeleteBulkMessage = {
     [<JsonProperty "ids">]
-    ids : list<Snowflake>;
+    ids : Snowflake[];
     [<JsonProperty "channel_id">]
     channelId : Snowflake;
 }
@@ -139,7 +132,7 @@ type PresenceUpdateMessage = {
     [<JsonProperty "user">]
     user : User;
     [<JsonProperty "roles">]
-    roles : list<Snowflake>;
+    roles : Snowflake[];
     [<JsonProperty "game">]
     game : Activity;
     [<JsonProperty "guild_id">]
@@ -167,8 +160,8 @@ type VoiceServerUpdateMessage = {
 }
 
 type GatewayEvents =
-    | Ready of Payload
-    | Resume of Payload
+    | Ready of ReadyMessage
+    | Resume of ResumeMessage
     | ChannelCreate of Channel
     | ChannelUpdate of Channel
     | ChannelDelete of Channel

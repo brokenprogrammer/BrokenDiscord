@@ -9,81 +9,54 @@ open Newtonsoft.Json.Linq
 
 open BrokenDiscord.Events
 open BrokenDiscord.Types
+open BrokenDiscord.Packets
 open BrokenDiscord.Json
 open BrokenDiscord.Json.Json
 open BrokenDiscord.WebSockets
 open BrokenDiscord.WebSockets.WebSocket
+open Hopac
+open Hopac.Infixes
     
-type ISerializable =
-    abstract member Serialize : unit -> string
+module Gateway =
+    let mutable private socket : ClientWebSocket = new ClientWebSocket()
+    let mutable private tokenvalue = ""
+    let mutable private session_id = ""
+    let mutable private seq = -1
 
-type HeartbeatPacket (seq : int) =
-    member this.seq = seq
-
-    interface ISerializable with
-        member this.Serialize() =
-            let payload = {op = OpCode.Heartbeat; d = JObject.FromObject(this); s = None; t = None}
-            toJson payload
-
-type IdentifyPacket (token : string, shard : int, numshards : int) =
-    //TODO: Better way to construct the properties.
-    let getProperties = 
-        new JObject(new JProperty("$os", "linux"), 
-            new JProperty("$browser", "brokendiscord"), 
-            new JProperty("$device", "brokendiscord"))
+    [<Literal>]
+    let private MAX_RECONNECTS = 6
     
-    member this.token = token
-    member this.properties = getProperties
-    member this.compress = false //true TODO: Change this to true when zlib decompression has been added.
-    member this.large_threshold = 250
-    member this.shard =  [|shard; numshards|]
-
-    interface ISerializable with
-        member this.Serialize() =
-            let payload = {op = OpCode.Identify; d = JObject.FromObject(this); s = None; t = None}
-            toJson payload
-
-type Gateway () =
-    let socket : ClientWebSocket = new ClientWebSocket()
-    let gatewayURI = "wss://gateway.discord.gg/?v=6&encoding=json"
-
-    let gatewayEvent = new Event<GatewayEvents>()
+    [<Literal>]
+    let private GatewayURI = "wss://gateway.discord.gg/?v=6&encoding=json"
     
-    let Send (packet : ISerializable) = 
-        async {
-            // printf "%s" ("Sending packet" + packet.Serialize())
-            do! WebSocket.sendMessageUTF8 (packet.Serialize()) socket
-            // printf "%s" "Sent packet...\n"
-        }
+    let private GatewayEvent = new Event<GatewayEvents>()
+    
+    [<CLIEvent>]
+    let gatewayEvent = GatewayEvent.Publish
 
-    let rec heartbeat (interval : int) =
-        async {
-            do! interval |> Task.Delay |> Async.AwaitTask |> Async.Ignore
-            do! Send(HeartbeatPacket(interval)) |> Async.Ignore
-            // printf "%s" "Sent Heartbeat packet\n"
-            do! heartbeat interval
-        }
+    let send (packet : ISerializable) = WebSocket.sendMessageUTF8 (packet.Serialize()) socket
+
+    let rec heartbeat interval =
+        timeOutMillis interval
+        >>- (fun () -> HeartbeatPacket interval)
+        >>= send >>- (fun () -> interval) >>= heartbeat
 
     let handleDispatch (payload : Payload) =
-        let s = payload.s
+        seq <- Option.defaultValue seq payload.s
+        
         let t = payload.t.Value
-
-        // printf "%s %s" "\nHandling DISPATCH " t
-        // printf "%s" "\n"
-        // printf "CONTENT: %s\n" (payload.d.ToString())
+        if t = "READY" then
+            session_id <- (ofJsonValue "session_id" payload.d)
 
         let payloadData = payload.d
         let payloadJson = payloadData.ToString()
         
-        //TODO: Naming
         let trigger eventType =
-            ofJson payloadJson |> eventType |> gatewayEvent.Trigger
+            ofJson payloadJson |> eventType |> GatewayEvent.Trigger
 
-        //TODO: All events from link is not added: https://discordapp.com/developers/docs/topics/gateway#commands-and-events
-        //TODO: Verify that single Snowflake cases gets parsed from JSON correctly.
         match t with
-        | "READY"                       -> gatewayEvent.Trigger(Ready(payload))
-        | "RESUMED"                     -> gatewayEvent.Trigger(Resume(payload))
+        | "READY"                       -> trigger Ready
+        | "RESUMED"                     -> trigger Resume
         | "CHANNEL_CREATE"              -> trigger ChannelCreate
         | "CHANNEL_UPDATE"              -> trigger ChannelUpdate
         | "CHANNEL_DELETE"              -> trigger ChannelDelete
@@ -117,51 +90,59 @@ type Gateway () =
         | "VOICE_SERVER_UPDATE"         -> trigger VoiceServerUpdate
         | _                             -> () // TODO: Log Unhandled event
 
-    //TODO: better naming for this function
-    let parseMessage (payload : Payload) =
-        match payload.op with
-        | OpCode.Dispatch -> 
-            handleDispatch payload
-        | OpCode.Heartbeat -> 1 |> ignore
-        | OpCode.Identify -> 2 |> ignore
-        | OpCode.StatusUpdate -> 3 |> ignore
-        | OpCode.VoiceStateUpdate -> 4 |> ignore
-        | OpCode.VoiceServerPing -> 5 |> ignore
-        | OpCode.Resume -> 6 |> ignore
-        | OpCode.Reconnect -> 7 |> ignore
-        | OpCode.RequestGuildMembers -> 8 |> ignore
-        | OpCode.InvalidSession -> 9 |> ignore
-        | OpCode.Hello -> 
-            // printf "%s" "Receieved Hello opcode, starting heartbeater...\n"
-            let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
-            heartbeat(heartbeatInterval) |> Async.Start
-        | OpCode.HeartbeatACK -> 11 |> ignore
-        | _ -> 0 |> ignore
-
-    let Run (token : string) = 
-        async {
-            // printf "%s" "Connecting...\n"
+    let reconnect token identify =
+        job {
+            match socket.State with
+            | WebSocketState.Closed -> ()
+            | _ -> do! WebSocket.close WebSocketCloseStatus.Empty "" socket
+            socket.Dispose()
             
-            do! socket.ConnectAsync(Uri(gatewayURI), CancellationToken.None) |> Async.AwaitTask
-            
-            let identification = IdentifyPacket(token, 0, 1)
-            do! Send(identification) |> Async.Ignore
+            socket <- new ClientWebSocket()
+            do! Job.awaitUnitTask <| socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None)
 
-            while socket.State = WebSocketState.Open do
-                let! payload =  WebSocket.receieveMessageUTF8 socket
-                ofJson<Payload> payload |> parseMessage
+            let resume = send {token=token; session_id=session_id; seq=seq}
 
-                // printf "%s" "End of run loop \n"
-            
-            // printf "%s" (socket.State.ToString())
+            let reidentify =
+                timeOutMillis 5000
+                >>- (fun () -> IdentifyPacket(token, 0, 1))
+                >>= send
+                
+            do! if identify then reidentify else resume 
         }
 
-    // Test method that calls the Run function with the target websocket uri
-    member this.connect (token : string) = Run token
+    let parse message =
+        let op = JObject.Parse(message) |> ofJsonValue<int> "op" |> enum<OpCode>
+        
+        match op with
+        | OpCode.Dispatch -> 
+            ofJson<Payload> message |> handleDispatch |> Job.result
+        | OpCode.Heartbeat              -> 1  |> ignore |> Job.result
+        | OpCode.Identify               -> 2  |> ignore |> Job.result
+        | OpCode.StatusUpdate           -> 3  |> ignore |> Job.result
+        | OpCode.VoiceStateUpdate       -> 4  |> ignore |> Job.result
+        | OpCode.VoiceServerPing        -> 5  |> ignore |> Job.result
+        | OpCode.Resume                 -> 6  |> ignore |> Job.result
+        | OpCode.Reconnect              -> 7  |> ignore |> Job.result
+        | OpCode.RequestGuildMembers    -> 8  |> ignore |> Job.result
+        | OpCode.HeartbeatACK           -> 11 |> ignore |> Job.result
+        | OpCode.InvalidSession         -> reconnect tokenvalue true
+        | OpCode.Hello ->
+            let payload = ofJson<Payload> message
+            let heartbeatInterval = payload.d.["heartbeat_interval"].Value<int>()
+            heartbeat heartbeatInterval |> Job.startIgnore
+        | _ -> 0 |> ignore |> Job.result
 
-    [<CLIEvent>]
-    member this.GatewayEvent = gatewayEvent.Publish
-
-    interface IDisposable with
-        member this.Dispose() = 
+    let run token = 
+        job {
+            tokenvalue <- token
+            do! Job.awaitUnitTask <| socket.ConnectAsync(Uri(GatewayURI), CancellationToken.None)
+            do! send <| IdentifyPacket(token, 0, 1)
+            
+            for i in 1..MAX_RECONNECTS do
+                while socket.State = WebSocketState.Open do
+                    let! message = WebSocket.receiveMessageUTF8 socket
+                    if message <> null && message <> String.Empty then
+                        do! parse message
+                do! reconnect token false
             socket.Dispose()
+        }

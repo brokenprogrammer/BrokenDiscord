@@ -16,16 +16,18 @@ let pong (m : Message) =
             return! client.CreateMessage m.channelId <| MessageCreate.T.New "pong!"
                     |> Job.startIgnore
         else return ()
-    } |> Job.startIgnore |> run
+    } |> start
+
+let handleEvents = function
+    | MessageCreate m -> (pong m)
+    | _ -> ()
 
 [<EntryPoint>]
 let main _argv =
     client.Events
-    |> Event.choose (function MessageCreate e -> Some e | _ -> None)
-    |> Event.filter (fun e -> Option.defaultValue false e.author.bot)
-    |> Event.add pong
+    |> Event.add handleEvents
     printfn "Listening for pings..."
-    client.subscribe () |> Async.StartAsTask |> ignore
+    client.start()
     printfn "Press enter to quit"
     stdin.ReadLine () |> ignore
     0
