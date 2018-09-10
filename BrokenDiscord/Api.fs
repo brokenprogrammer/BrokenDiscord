@@ -28,6 +28,14 @@ let private basePath = sprintf "https://discordapp.com/api/v6/%s"
 module Ratelimiting =
     open Hopac
     type Target = Global | Route of string
+    let route (u : Uri) =
+        let path =
+            u.Segments 
+            |> Seq.map (String.filter ((<>) '/'))
+            |> Seq.filter ((<>) "")
+            |> String.concat "/"
+        sprintf "%s/%s" u.Host path      
+        
     type Cessation = 
         { target : Target; release : DateTime }
         with
@@ -78,15 +86,9 @@ module Response =
 
     let rateCk r =
         if r.statusCode = 429 then
-            let route =
-                let path =
-                    r.responseUri.Segments 
-                    |> Seq.map (String.filter ((<>) '/'))
-                    |> String.concat "/"
-                sprintf "%s/%s" r.responseUri.Host path
             let cessation =
                 Response.readBodyAsString r >>- ofJson<RatelimError>
-                >>- RatelimError.cessation route
+                >>- RatelimError.cessation (route r.responseUri)
             cessation >>= Ratelimiting.notify |> Job.startIgnore |> ignore
             cessation >>- FSharp.Core.Result.Error
         else Job.result <| FSharp.Core.Ok r
