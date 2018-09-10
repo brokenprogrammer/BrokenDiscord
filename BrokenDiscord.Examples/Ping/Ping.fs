@@ -7,7 +7,7 @@ open BrokenDiscord.Types
 open Hopac
 open Hopac.Infixes
 
-let token = sprintf "Bot %s" <| Environment.GetEnvironmentVariable "PING_BOT_TOKEN"
+let token = Environment.GetEnvironmentVariable "PING_BOT_TOKEN"
 let client = new Client(token)
 
 let pong (m : Message) =
@@ -20,8 +20,6 @@ let pong (m : Message) =
 
 [<EntryPoint>]
 let main _argv =
-    let token = Environment.GetEnvironmentVariable "PING_BOT_TOKEN"
-    let client = new Client(token)
     client.Events
     |> Event.choose (function MessageCreate e -> Some e | _ -> None)
     |> Event.filter (fun e -> Option.defaultValue false e.author.bot)
