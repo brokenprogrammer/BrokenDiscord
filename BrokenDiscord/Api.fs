@@ -7,22 +7,23 @@ open BrokenDiscord.Types
 open BrokenDiscord.Json.Json
 open Newtonsoft.Json
 
+open HttpFs.Client
+
 open Hopac
 open Hopac.Infixes
-open HttpFs.Client
-    
+
 let private userAgent =
     sprintf "DiscordBot (%s, %s)"
     <| "https://github.com/brokenprogrammer/BrokenDiscord"
     <| "6"
-
 
 let private setHeaders token req =
     req
     |> Request.setHeader (Authorization (sprintf "Bot %s" token))
     |> Request.setHeader (UserAgent userAgent)
 
-let private basePath = sprintf "https://discordapp.com/api/%s"
+let private basePath = sprintf "https://discordapp.com/api/v6/%s"
+
 
 module Response =
     let parseRtn<'t> r = 
@@ -37,7 +38,10 @@ module Response =
 module Request =
     let jsonBody<'t> (x : 't option) =
         match x with
-        | Some x -> Request.bodyString (toJson x)
+        | Some x ->
+            Request.bodyString (toJson x)
+            >> Request.setHeader
+                (ContentType <| ContentType.create ("application", "json"))
         | _ when typeof<'t> = typeof<unit> -> id
         | None -> id
     

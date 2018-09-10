@@ -97,7 +97,7 @@ type Client (token : string) =
     
     member val Events = Gateway.gatewayEvent
     
-    member this.start() = token |> Gateway.run |> Async.RunSynchronously
+    member this.start() = token |> Gateway.run |> run
 
     /// Get a channel by ID. Returns a channel object.
 
@@ -144,7 +144,6 @@ type Client (token : string) =
     
     /// Post a message to a guild text or DM channel.
     member this.CreateMessage (chid : Snowflake) (args : MessageCreate) =
-        //TODO: Might have to be restructured to work with uploading files.
         let unwrap = function Some x -> [x] | None -> []
         let body =
             let rc = 
@@ -265,7 +264,7 @@ type Client (token : string) =
 
     /// Returns a list of guild channel objects.
     member this.GetGuildChannels guid = 
-        restGetCall<unit,Channel> token <| guildChannelEndpoint (Some guid) <| None
+        restGetCall<unit,Channel[]> token <| guildChannelEndpoint (Some guid) <| None
 
     member this.CreateGuildChannel guid (args : CreateGuildChannel) = 
         restPostCall<_,Channel> token <| guildChannelEndpoint (Some guid) <| Some args
