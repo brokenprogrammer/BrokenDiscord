@@ -61,13 +61,12 @@ let receiveMessage cancellationToken bufferSize messageType (toStream : IO.Strea
                 let! result = Job.awaitTask <| socket.ReceiveAsync(buffer, cancellationToken)
                 match result with
                 | result when result.MessageType = WebSocketMessageType.Close || socket.State = WebSocketState.CloseReceived ->
-                    do! socket.CloseOutputAsync (WebSocketCloseStatus.NormalClosure, "Close Received", cancellationToken) |> Async.AwaitTask
+                    do! Job.awaitUnitTask <| socket.CloseOutputAsync (WebSocketCloseStatus.NormalClosure, "Close Received", cancellationToken)
                     return true
                 | result ->
                     if result.MessageType <> messageType then return ()
                     
                     do! toStream.AsyncWrite(buffer.Array,buffer.Offset,result.Count)
-                    
                     if result.EndOfMessage then
                         return false
                     else return! recvToEnd ()
