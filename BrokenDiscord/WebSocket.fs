@@ -33,10 +33,17 @@ module WebSocket =
     let sendMessage bufferSize messageType (stream : IO.Stream) (socket : ClientWebSocket) = 
         job {
             let buffer = Array.create (bufferSize) Byte.MinValue
-            use reader = new MemoryStream(buffer)
-            do! Job.awaitUnitTask <| stream.CopyToAsync(reader)
-            let payload = ArraySegment(reader.GetBuffer())
-            do! send payload messageType true socket
+
+            let rec sendMessage' () =
+                job {
+                    let! read = stream.ReadAsync(buffer, 0, buffer.Length) |> Async.AwaitTask
+                    if read > 0 then
+                        do! socket |> send (ArraySegment(buffer |> Array.take read)) messageType false
+                        return! sendMessage' ()
+                    else
+                        do! send (ArraySegment(Array.empty)) messageType true socket
+                }
+            do! sendMessage'()
         }
     
     /// Sends a specified UTF8 string as the message for specified socket.
