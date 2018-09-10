@@ -2,10 +2,12 @@
 
 open System
 
-open Newtonsoft.Json.Linq
 open Newtonsoft.Json
 open FSharp.Data
 open HttpFs.Client
+
+type ISerializable =
+    abstract member Serialize : unit -> string
 
 type IMentionable =
     abstract member Mention : string
