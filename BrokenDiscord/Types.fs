@@ -271,7 +271,7 @@ type EmbedField = {
 type Embed = {
         title       : string option
         [<JsonProperty "type">]
-        kind        : ChannelKind
+        kind        : string option
         description : string option
         url         : string option
         timestamp   : DateTime option
