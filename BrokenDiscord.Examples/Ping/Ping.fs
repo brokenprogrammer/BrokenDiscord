@@ -16,7 +16,7 @@ let pong (m : Message) =
             return! client.CreateMessage m.channelId <| MessageCreate.T.New "pong!"
                     |> Job.startIgnore
         else return ()
-    } |> ignore
+    } |> Job.startIgnore |> run
 
 [<EntryPoint>]
 let main _argv =
