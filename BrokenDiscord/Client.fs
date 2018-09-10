@@ -268,7 +268,7 @@ type Client (token : string) =
 
     /// Returns a list of guild channel objects.
     member this.GetGuildChannels guid = 
-        restGetCall<unit,Channel> token <| guildChannelEndpoint (Some guid) <| None
+        restGetCall<unit,Channel[]> token <| guildChannelEndpoint (Some guid) <| None
 
     member this.CreateGuildChannel guid (args : CreateGuildChannel) = 
         restPostCall<_,Channel> token <| guildChannelEndpoint (Some guid) <| Some args
