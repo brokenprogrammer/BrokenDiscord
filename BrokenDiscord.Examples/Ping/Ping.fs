@@ -25,7 +25,7 @@ let main _argv =
     |> Event.filter (fun e -> Option.defaultValue false e.author.bot)
     |> Event.add pong
     printfn "Listening for pings..."
-    client.subscribe () |> Async.StartAsTask |> ignore
+    client.start()
     printfn "Press enter to quit"
     stdin.ReadLine () |> ignore
     0
