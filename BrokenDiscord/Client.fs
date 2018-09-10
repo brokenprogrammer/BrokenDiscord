@@ -92,8 +92,8 @@ type Client (token : string) =
     let token = token
 
     member val GatewayVersion = 0 with get, set
-    member val PrivateChannels = [] with get, set
-    member val Guilds = [] with get,set
+    member val PrivateChannels = [| |] with get, set
+    member val Guilds = [| |] with get,set
     
     member val Events = Gateway.gatewayEvent
     
@@ -143,7 +143,7 @@ type Client (token : string) =
         restGetCall<unit,Message> token <| messageEndpoint chid mgid <| None
     
     /// Post a message to a guild text or DM channel.
-    member this.CreateMessage (chid : Snowflake) (args : MessageCreate) =
+    member this.CreateMessage (chid : Snowflake) (args : MessageCreate.T) =
         let unwrap = function Some x -> [x] | None -> []
         let body =
             let rc = 
