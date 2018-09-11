@@ -2,10 +2,12 @@
 
 open System
 
-open Newtonsoft.Json.Linq
 open Newtonsoft.Json
 open FSharp.Data
 open HttpFs.Client
+
+type ISerializable =
+    abstract member Serialize : unit -> string
 
 type IMentionable =
     abstract member Mention : string
@@ -269,7 +271,7 @@ type EmbedField = {
 type Embed = {
         title       : string option
         [<JsonProperty "type">]
-        kind        : ChannelKind
+        kind        : string option
         description : string option
         url         : string option
         timestamp   : DateTime option
@@ -645,37 +647,37 @@ module MessageCreate =
     type RichContent =
         { embed : Embed option; files : File[] }
         with static member Default = { embed=None; files=[| |] }
-open MessageCreate
-type MessageCreate = {
-        content     : string
-        nonce       : Snowflake option
-        tts         : bool option
-        richContent : RichContent option
-    } with
-    static member Default = { content=""; nonce=None; tts=None; richContent=None }
-    static member New content = { MessageCreate.Default with content=content }
-    member this.WithFile (file:File) =
-        let rich = Option.defaultValue RichContent.Default this.richContent
-        { this with richContent = 
-                    Some { rich with files=(Array.append rich.files [| file |]) } }
-                    
-    member this.WithFile(name:string, body) =
-        let ext = name.[name.LastIndexOf('.')..]
-        let contentType = MimeTypes.tryFind ext
-        let contentType =
-            match contentType with
-            | Some x -> x
-            | _ -> failwithf "No content-type found corresponding to extension %s" ext
-            |> ContentType.parse
-            |> Option.get
-        let file = 
-            {   mime=contentType; name=name; content=body }
-        this.WithFile(file)
         
-    member this.WithEmbed(embed) =
-        let rich = Option.defaultValue RichContent.Default this.richContent
-        { this with richContent =
-                    Some { rich with embed=Some embed } }
+    type T = {
+            content     : string
+            nonce       : Snowflake option
+            tts         : bool option
+            richContent : RichContent option
+        } with
+        static member Default = { content=""; nonce=None; tts=None; richContent=None }
+        static member New content = { T.Default with content=content }
+        member this.WithFile (file:File) =
+            let rich = Option.defaultValue RichContent.Default this.richContent
+            { this with richContent = 
+                        Some { rich with files=(Array.append rich.files [| file |]) } }
+                        
+        member this.WithFile(name:string, body) =
+            let ext = name.[name.LastIndexOf('.')..]
+            let contentType = MimeTypes.tryFind ext
+            let contentType =
+                match contentType with
+                | Some x -> x
+                | _ -> failwithf "No content-type found corresponding to extension %s" ext
+                |> ContentType.parse
+                |> Option.get
+            let file = 
+                {   mime=contentType; name=name; content=body }
+            this.WithFile(file)
+            
+        member this.WithEmbed(embed) =
+            let rich = Option.defaultValue RichContent.Default this.richContent
+            { this with richContent =
+                        Some { rich with embed=Some embed } }
                 
 type WebGetReactionsParams = {
         before  : Snowflake option

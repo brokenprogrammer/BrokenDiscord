@@ -7,6 +7,8 @@ open BrokenDiscord.Types
 open BrokenDiscord.Json.Json
 open Newtonsoft.Json
 
+open HttpFs.Client
+
 open Hopac
 open HttpFs.Client
 open Chessie.Hopac.JobTrial
