@@ -13,6 +13,10 @@ open HttpFs.Client
 open Hopac
 open Hopac.Infixes
 
+open Chessie.ErrorHandling
+open Chessie.ErrorHandling.Trial
+open System.Collections.Concurrent
+open System.Threading
 open FSharp.Control
 open Newtonsoft.Json.Linq
 open FSharpPlus
@@ -88,6 +92,7 @@ let private webhookSlackEndpoint hookid hooktoken =
 let private webhookGitHubEndpoint hookid hooktoken = 
     (webhookTokenEndpoint hookid hooktoken) + sprintf "/github"
 
+
 type Client (token : string) =
     let token = token
 
@@ -119,17 +124,15 @@ type Client (token : string) =
     /// Returns an array of message objects on success.
     member this.GetChannelMessages (args : HistoryParams) (chid : Snowflake) =
         let retrieve =
-            restGetCall<WebGetChannelMessagesParams, Message[]> token <| historyEndpoint chid
+            restGetCall<_, Message[]> token <| historyEndpoint chid
+        
         asyncSeq {
-            let! payload = retrieve (Some args.Payload) |> Job.toAsync
-            let payload =
-                match payload with
-                | Ok x -> x
-                | Error err -> raise <| ApiException err
+            let n = min args.limit 100
+            let! payload =
+                retrieve <| Some { args.Payload with limit=Some n }
+                >>- returnOrFail |> Job.toAsync
             yield! AsyncSeq.ofSeq payload
-            let remaining = 
-                if args.limit > 100 then args.limit-100
-                else 0
+            let remaining = args.limit-n
             if remaining > 0 then
                 yield!
                     this.GetChannelMessages
