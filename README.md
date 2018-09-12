@@ -1,4 +1,4 @@
-# BrokenDiscord [![Build Status](https://travis-ci.org/brokenprogrammer/BrokenDiscord.svg?branch=master)](https://travis-ci.org/brokenprogrammer/BrokenDiscord)
+# BrokenDiscord [![Build Status](https://travis-ci.org/brokenprogrammer/BrokenDiscord.svg?branch=master)](https://travis-ci.org/brokenprogrammer/BrokenDiscord) [![NuGet](https://img.shields.io/nuget/v/BrokenDiscord.svg)](https://www.nuget.org/packages/BrokenDiscord/)
 
 BrokenDiscord is a [Discord](https://discordapp.com) API Library written in [F#](https://fsharp.org/). The main purpose is to provide a functional alternative that is both clean and easy to use. 
 
