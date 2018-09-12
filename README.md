@@ -16,7 +16,7 @@ First you want to import the following modules
     open Hopac
 ```
 
-You can then construct a new Discord client which can be used to access both the Discord web API and set callbacks for Discord evets.
+You can then construct a new Discord client which can be used to access both the Discord web API and set callbacks for Discord events.
 ```fsharp
 let client = new Client("DISCORD_BOT_TOKEN_HERE")
 ```
