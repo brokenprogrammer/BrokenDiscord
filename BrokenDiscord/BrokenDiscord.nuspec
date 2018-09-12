@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <owners>$author$</owners>
+    <licenseUrl>https://github.com/brokenprogrammer/BrokenDiscord/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/brokenprogrammer/BrokenDiscord</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>BrokenDiscord is a Discord API Library written in F#.</description>
+    <releaseNotes>Initial release.</releaseNotes>
+    <copyright>Copyright 2018</copyright>
+    <tags>discord fsharp</tags>
+  </metadata>
+</package>
