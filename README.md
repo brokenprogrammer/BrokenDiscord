@@ -3,7 +3,7 @@
 BrokenDiscord is a [Discord](https://discordapp.com) API Library written in [F#](https://fsharp.org/). The main purpose is to provide a functional alternative that is both clean and easy to use. 
 
 ## Installation
-The library is soon to be added to NuGet.
+The library is available through [NuGet](https://www.nuget.org/packages/BrokenDiscord/).
 
 ## Usage
 The classic ping pong example can be found [here](https://github.com/brokenprogrammer/BrokenDiscord/blob/master/BrokenDiscord.Examples/Ping/Ping.fs). More examples will be added in the future.
@@ -41,3 +41,4 @@ In the main function of the program you can add event handlers to the client and
 ## Contributors
 - [Oskar Mendel](https://github.com/brokenprogrammer) - Creator, maintainer
 - [iseurie](https://github.com/iseurie) - Maintainer
+- [Elliott Brown](https://github.com/EBrown8534) - Structure, bug fixes
