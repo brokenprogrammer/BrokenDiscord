@@ -346,7 +346,7 @@ type MessageActivityKind =
     | JoinRequest   = 5
 
 type MessageActivity = {
-        [<JsonProperty "kind">]
+        [<JsonProperty "type">]
         kind : MessageActivityKind
         partyId: string option
     }
