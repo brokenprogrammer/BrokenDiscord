@@ -21,8 +21,6 @@ open FSharp.Control
 open Newtonsoft.Json.Linq
 open FSharpPlus
 
-let private uesc = System.Uri.EscapeDataString
-
 let private channelEndpoint : (Snowflake->_) = sprintf "/channels/%d"
 let private channelOverwriteEndpoint : (_->Snowflake->_) =
     channelEndpoint >> sprintf "%s/permissions/overwrite/%d"
@@ -43,7 +41,10 @@ let private msgReactionsEndpoint mgid chid = messageEndpoint mgid chid + "/react
 let private emoteReactionsEndpoint chid mgid (e : Emoji) =
     msgReactionsEndpoint chid mgid
     + (sprintf "/%s"
-        <| Option.defaultValue e.name (Option.map string e.id) |> uesc)
+        <| match e.id with
+           | Some x -> sprintf "%s:%d" e.name x
+           | None -> e.name
+      )
         
 let private userReactionsEndpoint chid mgid e (u : USpec) =
     emoteReactionsEndpoint chid mgid e + sprintf "/%s" (string u)
