@@ -27,15 +27,6 @@ module Snowflake =
     
     let withTime t s = ofTime t ||| s
     
-type PermsTarget =
-    User | Role
-    with
-    override x.ToString () =
-        match x with User -> "user" | Role -> "role"
-    member __.OfString =
-        function "user" -> User | "role" -> Role
-    
-
 [<Flags>]
 type Perms =
     | CreateInstantInvite = 0x00000001
@@ -80,7 +71,7 @@ let serverWideMFARequiresMFA (p : Perms) =
 type Overwrite = {
         id      : Snowflake
         [<JsonProperty "type">]
-        kind    : PermsTarget
+        kind    : string
         allow   : int
         deny    : int
     }
@@ -91,6 +82,7 @@ type User = {
         discriminator   : string
         avatar          : string option
         bot             : bool option
+        [<JsonProperty "mfa_enabled">]
         mfaEnabled      : bool option
         locale          : string option
         verified        : bool option
@@ -101,7 +93,6 @@ type User = {
     interface IMentionable with
         member x.Mention = sprintf "<@%d>" x.id
             
-
 type Prune = {
         pruned : int
     }
@@ -117,8 +108,8 @@ type Ban = {
 
 type CreateBan = {
         [<JsonProperty "delete-message-days">]
-        delete_message_days : int
-        reason              : string
+        deleteMessageDays : int
+        reason            : string
     }
 
 type IntegrationAccount = {
@@ -133,12 +124,16 @@ type Integration = {
         kind                : string
         enabled             : bool
         syncing             : bool
-        role_id             : Snowflake
-        expire_behavior     : int
-        expire_grace_period : int
+        [<JsonProperty "role_id">]
+        roleId              : Snowflake
+        [<JsonProperty "expire_behavior">]
+        expireBehavior      : int
+        [<JsonProperty "expire_grace_period">]
+        expireGracePeriod   : int
         user                : User
         account             : IntegrationAccount
-        synced_at           : DateTime
+        [<JsonProperty "synced_at">]
+        syncedAt            : DateTime
     }
 
 type CreateIntegration = {
@@ -148,9 +143,12 @@ type CreateIntegration = {
     }
 
 type ModifyIntegration = {
-        expire_behavior     : int
-        expire_grace_period : int
-        enable_emoticons    : bool
+        [<JsonProperty "expire_behavior">]
+        expireBehavior     : int
+        [<JsonProperty "expire_grace_period">]
+        expireGracePeriod : int
+        [<JsonProperty "enable_emoticons">]
+        enableEmoticons    : bool
     }
 
 type Connection = {
@@ -203,20 +201,28 @@ type Channel = {
         id                      : Snowflake
         [<JsonProperty "type">]
         kind                    : ChannelKind
+        [<JsonProperty "guild_id">]
         guildId                 : Snowflake option
         position                : int option
+        [<JsonProperty "permission_overwrites">]
         permissionOverwrites    : Overwrite[]
         name                    : string option
         topic                   : string option
         nsfw                    : bool option
+        [<JsonProperty "last_message_id">]
         lastMessageId           : Snowflake option
         bitrate                 : int option
+        [<JsonProperty "user_limit">]
         userLimit               : int option
         recipients              : User[]
         icon                    : string option
+        [<JsonProperty "owner_id">]
         ownerId                 : Snowflake option
+        [<JsonProperty "application_id">]
         applicationId           : Snowflake option
+        [<JsonProperty "parent_id">]
         parentId                : Snowflake option
+        [<JsonProperty "last_pin_timestamp">]
         lastPinTimestamp        : DateTime option
     } with
     interface IMentionable with
@@ -225,6 +231,7 @@ type Channel = {
 
 type EmbedThumbnail = {
         url         : string option
+        [<JsonProperty "proxy_url">]
         proxyURL    : string option
         height      : int option
         width       : int option
@@ -238,6 +245,7 @@ type EmbedVideo = {
 
 type EmbedImage = {
         url         : string option
+        [<JsonProperty "proxy_url">]
         proxyURL    : string option
         height      : int option
         width       : int option
@@ -251,13 +259,17 @@ type EmbedProvider = {
 type EmbedAuthor = {
         name            : string option
         url             : string option
+        [<JsonProperty "icon_url">]
         iconURL         : string option
+        [<JsonProperty "proxy_icon_url">]
         proxyIconURL    : string option
     }
 
 type EmbedFooter = {
         text            : string
+        [<JsonProperty "icon_url">]
         iconURL         : string option
+        [<JsonProperty "proxy_icon_url">]
         proxyIconURL    : string option
     }
 
@@ -290,6 +302,7 @@ type Attachment = {
         filename    : string
         size        : int
         url         : string
+        [<JsonProperty "proxy_url">]
         proxyURL    : string
         height      : int option
         width       : int option
@@ -300,6 +313,7 @@ type Emoji = {
         name            : string
         roles           : Role[] option
         user            : User option
+        [<JsonProperty "require_colons">]
         requireColons   : bool option
         managed         : bool option
         animated        : bool option
@@ -332,13 +346,14 @@ type MessageActivityKind =
     | JoinRequest   = 5
 
 type MessageActivity = {
-        [<JsonProperty "kind">]
+        [<JsonProperty "type">]
         kind : MessageActivityKind
         partyId: string option
     }
 
 type MessageApplication = {
         id          : Snowflake
+        [<JsonProperty "cover_image">]
         coverImage  : string
         description : string
         icon        : string
@@ -359,19 +374,25 @@ type Message = {
         id              : Snowflake
         [<JsonProperty "channel_id">]
         channelId       : Snowflake
+        [<JsonProperty "guild_id">]
+        guildId         : Snowflake option
         author          : User
         content         : string
         timestamp       : DateTime
+        [<JsonProperty "edit_timestamp">]
         editedTimestamp : DateTime option
         tts             : bool
+        [<JsonProperty "mention_everyone">]
         mentionEveryone : bool
         mentions        : User[]
+        [<JsonProperty "mention_roles">]
         mentionRoles    : Role[]
         attachments     : Attachment[]
         embeds          : Embed[]
         reactions       : Reaction[] option
         nonce           : Snowflake option
         pinned          : bool
+        [<JsonProperty "webhook_id">]
         webhookId       : Snowflake option
         kind            : MessageKind
         activity        : MessageActivity option
@@ -381,6 +402,7 @@ type Message = {
         {
             id              = Snowflake.ofTime DateTime.Now
             channelId       = 0UL
+            guildId         = None
             author          = author
             content         = content
             timestamp       = DateTime.Now
@@ -405,14 +427,25 @@ type ActivityType =
     | Streaming = 1
     | Listening = 2
 
-type ActivityTimestamps = {Start : int option; End : int option}
+type ActivityTimestamps = {
+        start       : int option
+        [<JsonProperty "end">]
+        finish    : int option
+    }
 
-type ActivityParty = {Id : string option; Size : int[] option}
+type ActivityParty = {
+        id      : string option
+        size    : int[] option
+    }
 
 type ActivityAssets = {
+        [<JsonProperty "large_image">]
         largeImage  : string option
+        [<JsonProperty "large_text">]
         largeText   : string option
+        [<JsonProperty "small_image">]
         smallImage  : string option
+        [<JsonProperty "small_text">]
         smallText   : string option
     }
 
@@ -438,6 +471,7 @@ type Activity = {
         kind            : ActivityType
         url             : string option
         timestamps      : ActivityTimestamps option
+        [<JsonProperty "application_id">]
         applicationId   : Snowflake option
         details         : string option
         state           : string option
@@ -449,13 +483,19 @@ type Activity = {
     }
 
 type VoiceState = {
+        [<JsonProperty "guild_id">]
         guildId     : Snowflake option
+        [<JsonProperty "channel_id">]
         channelId   : Snowflake option
+        [<JsonProperty "user_id">]
         userId      : Snowflake
+        [<JsonProperty "session_id">]
         sessionId   : string
         deaf        : bool
         mute        : bool
+        [<JsonProperty "self_deaf">]
         selfDeaf    : bool
+        [<JsonProperty "self_mute">]
         selfMute    : bool
         suppress    : bool
     }
@@ -473,6 +513,7 @@ type PresenceUpdate = {
         user    : User
         roles   : Snowflake[]
         game    : Activity option
+        [<JsonProperty "guild_id">]
         guildId : Snowflake
         status  : string
     }
@@ -481,6 +522,7 @@ type GuildMember = {
         user        : User
         nick        : string option
         roles       : Snowflake[]
+        [<JsonProperty "joined_at">]
         joinedAt    : DateTime
         deaf        : bool
         mute        : bool
@@ -488,7 +530,8 @@ type GuildMember = {
 
 type GuildEmbed = {
         enabled     : bool
-        channel_id  : Snowflake option
+        [<JsonProperty "channel_id">]
+        channelId  : Snowflake option
     }
 
 type Guild = {
@@ -497,29 +540,45 @@ type Guild = {
         icon                            : string option
         splash                          : string option
         owner                           : bool option
+        [<JsonProperty "owner_id">]
         ownerId                         : Snowflake
         permissions                     : int option
         region                          : string
+        [<JsonProperty "afk_channel_id">]
         afkChannelId                    : Snowflake option
+        [<JsonProperty "afk_timeout">]
         afkTimeout                      : int
+        [<JsonProperty "embed_enabled">]
         embedEnabled                    : bool option
+        [<JsonProperty "embed_channel_id">]
         embedChannelId                  : Snowflake option
+        [<JsonProperty "verification_level">]
         verificationLevel               : int
+        [<JsonProperty "default_message_notifications">]
         defaultMessageNotifications     : int
+        [<JsonProperty "explicit_content_filter">]
         explicitContentFilter           : int
         roles                           : Role[]
         emojis                          : Emoji[]
         features                        : string[]
+        [<JsonProperty "mfa_level">]
         mfaLevel                        : int
+        [<JsonProperty "application_id">]
         applicationId                   : Snowflake option
+        [<JsonProperty "widget_enabled">]
         widgetEnabled                   : bool option
+        [<JsonProperty "widget_channel_id">]
         widgetChannelId                 : Snowflake option
+        [<JsonProperty "system_channel_id">]
         systemChannelId                 : Snowflake option
         // Below are only sent with GUILD_CREATE Event
+        [<JsonProperty "joined_at">]
         joinedAt                        : DateTime option
         large                           : bool option
         unavailable                     : bool option
+        [<JsonProperty "member_count">]
         memberCount                     : int option
+        [<JsonProperty "voice_states">]
         voiceStates                     : VoiceState[] option
         members                         : GuildMember[] option
         channels                        : Channel[] option
@@ -530,9 +589,12 @@ type CreateGuild = {
         name                            : string
         region                          : string
         icon                            : string
-        verification_level              : int
-        default_message_notifications   : int
-        explicit_content_filter         : int
+        [<JsonProperty "verification_level">]
+        verificationLevel               : int
+        [<JsonProperty "default_message_notifications">]
+        defaultMessageNotifications     : int
+        [<JsonProperty "explicit_content_filter">]
+        explicitContentFilter           : int
         roles                           : Role[]
         channels                        : Channel[]
     }
@@ -540,15 +602,22 @@ type CreateGuild = {
 type ModifyGuild = {
         name                            : string
         region                          : string
+        [<JsonProperty "verification_level">]
         verification_level              : int
-        default_message_notifications   : int
-        explicit_content_filter         : int
-        afk_channel_id                  : Snowflake
-        afk_timeout                     : int
+        [<JsonProperty "default_message_notifications">]
+        defaultMessageNotifications     : int
+        [<JsonProperty "explicit_content_filter">]
+        explicitContentFilter           : int
+        [<JsonProperty "afk_channel_id">]
+        afkChannelId                    : Snowflake
+        [<JsonProperty "afk_timeout">]
+        afkTimeout                      : int
         icon                            : string
-        owner_id                        : Snowflake
+        [<JsonProperty "owner_id">]
+        ownerId                         : Snowflake
         splash                          : string
-        system_channel_id               : Snowflake
+        [<JsonProperty "system_channel_id">]
+        systemChannelId                 : Snowflake
     }
 
 type CreateGuildChannel = {
@@ -557,9 +626,12 @@ type CreateGuildChannel = {
         kind                    : int
         topic                   : string
         bitrate                 : int
-        user_limit              : int
-        permission_overwrites   : Overwrite[]
-        parent_id               : Snowflake
+        [<JsonProperty "user_limit">]
+        userLimit               : int
+        [<JsonProperty "permission_overwrites">]
+        permissionOverwrites    : Overwrite[]
+        [<JsonProperty "parent_id">]
+        parentId                : Snowflake
         nsfw                    : bool
     }
 
@@ -575,7 +647,8 @@ type GuildMembersList = {
     }
 
 type GuildMemberAdd = {
-        access_token : string
+        [<JsonProperty "access_token">]
+        accessToken  : string
         nick         : string option
         roles        : Snowflake[] option
         mute         : bool option
@@ -587,7 +660,8 @@ type GuildMemberModify = {
         roles       : Snowflake[] option
         mute        : bool option
         deaf        : bool option
-        channel_id  : Snowflake option
+        [<JsonProperty "channel_id">]
+        channelId   : Snowflake option
     }
 
 type CurrentUserModifyNick = { nick : string }
@@ -595,10 +669,13 @@ type CurrentUserModifyNick = { nick : string }
 type InviteMetadata = {
         inviter     : User
         uses        : int
-        max_uses    : int
-        max_age     : int
+        [<JsonProperty "max_uses">]
+        maxUses     : int
+        [<JsonProperty "max_age">]
+        maxAge      : int
         temporary   : bool
-        created_at  : DateTime
+        [<JsonProperty "created_at">]
+        createdAt   : DateTime
         revoked     : bool
     }
     
@@ -606,9 +683,12 @@ type Invite = {
         code                        : string
         guild                       : Guild option
         channel                     : Channel
-        approximate_presence_count  : int option
-        approximate_member_count    : int option
-        meta_data                   : InviteMetadata option
+        [<JsonProperty "approximate_presence_count">]
+        approximatePresenceCount    : int option
+        [<JsonProperty "approximate_member_count">]
+        approximateMemberCount      : int option
+        [<JsonProperty "meta_data">]
+        metaData                    : InviteMetadata option
     }
 
 type WebModifyChannelParams = {
@@ -617,9 +697,12 @@ type WebModifyChannelParams = {
         topic                   : string
         nsfw                    : bool
         bitrate                 : int
-        user_limit              : int
-        permission_overwrites   : Overwrite[]
-        parent_id               : Snowflake
+        [<JsonProperty "user_limit">]
+        userLimit               : int
+        [<JsonProperty "permission_overwrites">]
+        permissionOverwrites    : Overwrite[]
+        [<JsonProperty "parent_id">]
+        parentId                : Snowflake
     }
 
 type WebGetChannelMessagesParams = {
@@ -696,21 +779,25 @@ type WebEditMessageParams = {
 type WebEditChannelPermissionsParams = {
         allow       : int
         deny        : int
-        editType    : PermsTarget
+        [<JsonProperty "type">]
+        kind        : string
     }
 
 type WebCreateChannelInviteParams = {
-        max_age     : int option
-        max_uses    : int option
+        [<JsonProperty "max_age">]
+        maxAge      : int option
+        [<JsonProperty "max_uses">]
+        maxUses     : int option
         temporary   : bool option
         unique      : bool option
     } with
     static member Default =
-        { max_age=None; max_uses=None
+        { maxAge=None; maxUses=None
           temporary=Some true; unique=Some true }
 
 type WebGroupDMAddRecipientParams = {
-        access_token    : string
+        [<JsonProperty "access_token">]
+        accessToken     : string
         nick            : string
     }
 
@@ -726,11 +813,13 @@ type WebGetCurrentUserGuildParams = {
     }
 
 type WebCreateDMParams = {
-        recipient_id : Snowflake
+        [<JsonProperty "recipient_id">]
+        recipientId : Snowflake
     }
 
 type WebCreateGroupDMParams = {
-        access_tokens : string[]
+        [<JsonProperty "access_token">]
+        accessTokens  : string[]
         nicks         : Map<Snowflake, string> // TODO: Is this serialized correctly? aka right type of dict expected.
     }
 
@@ -775,8 +864,10 @@ type HistoryParams =
 
 type Webhook = {
         id          : Snowflake
-        guild_id    : Snowflake option
-        channel_id  : Snowflake option
+        [<JsonProperty "guild_id">]
+        guildId    : Snowflake option
+        [<JsonProperty "channel_id">]
+        channelId  : Snowflake option
         user        : User option
         name        : string option
         avatar      : string option
@@ -791,13 +882,15 @@ type CreateWebhook = {
 type ModifyWebhook = {
         name        : string option
         avatar      : string option
-        channel_id  : Snowflake option
+        [<JsonProperty "channel_id">]
+        channelId  : Snowflake option
     }
 
 type ExecuteWebhook = {
         content     : string
         username    : string
-        avatar_url  : string
+        [<JsonProperty "avatar_url">]
+        avatarUrl  : string
         tts         : bool
         file        : File
         embeds      : Embed[]

@@ -42,3 +42,4 @@ In the main function of the program you can add event handlers to the client and
 - [Oskar Mendel](https://github.com/brokenprogrammer) - Creator, maintainer
 - [iseurie](https://github.com/iseurie) - Maintainer
 - [Elliott Brown](https://github.com/EBrown8534) - Structure, bug fixes
+- Michael Garnett - Structure, bug fixes
