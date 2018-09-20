@@ -149,29 +149,30 @@ type Client (token : string) =
     /// Post a message to a guild text or DM channel.
     member this.CreateMessage (chid : Snowflake) (args : MessageCreate.T) =
         let unwrap = function Some x -> [x] | None -> []
-        let body =
-            let rc = 
-                args.richContent
-                |> Option.map
-                    (fun rc -> NameValue(
-                                "payload_json",
-                                toJson <| JProperty("embed", toJson rc)))
-            match args.richContent with
-            | Some rc ->
-                [ for f in rc.files do
-                    yield FormData.FormFile(f.name, (f.name, f.mime, StreamData f.content)) ]
-            | None -> []
-            |> List.append
-                <| List.concat [
+        if args.HasFile() then //TODO: This branch of the if statement is probably broken, need propper formatting.
+            let body = 
+                let embed = 
+                    args.embed
+                    |> Option.map
+                        (fun e -> NameValue(
+                                    "payload_json",
+                                    toJson <| JProperty("embed", toJson e)))
+                match args.file with
+                | Some f -> [FormData.FormFile(f.name, (f.name, f.mime, StreamData f.content))]
+                | None -> []
+                |> List.append
+                    <| List.concat [
                     [NameValue("content", args.content)]
-                    unwrap rc
+                    unwrap embed
                     args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
                     args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
-         
-        restForm<Message> token Post
-        <| historyEndpoint chid
-        <| body
 
+            restForm<Message> token Post 
+            <| historyEndpoint chid
+            <| body
+        else 
+            restPostCall<_,Message> token <| historyEndpoint chid <| Some args
+        
     /// Create a reaction for the message. 
     member this.CreateReaction chid mgid emote =
         restPutThunk<unit> token <| userReactionsEndpoint chid mgid emote Me <| None

@@ -228,7 +228,6 @@ type Channel = {
     interface IMentionable with
         member x.Mention = sprintf "<#%d>" x.id
     
-
 type EmbedThumbnail = {
         url         : string option
         [<JsonProperty "proxy_url">]
@@ -278,7 +277,6 @@ type EmbedField = {
         value   : string
         inlinep : bool option
     }
-
     
 type Embed = {
         title       : string option
@@ -727,23 +725,19 @@ module MessageCreate =
     type File = {
             mime : ContentType; name: string
             content: System.IO.Stream }
-    type RichContent =
-        { embed : Embed option; files : File[] }
-        with static member Default = { embed=None; files=[| |] }
-        
+
     type T = {
             content     : string
             nonce       : Snowflake option
             tts         : bool option
-            richContent : RichContent option
+            file        : File option
+            embed       : Embed option
         } with
-        static member Default = { content=""; nonce=None; tts=None; richContent=None }
+        static member Default = { content=""; nonce=None; tts=None; file = None; embed=None;}
         static member New content = { T.Default with content=content }
-        member this.WithFile (file:File) =
-            let rich = Option.defaultValue RichContent.Default this.richContent
-            { this with richContent = 
-                        Some { rich with files=(Array.append rich.files [| file |]) } }
-                        
+        member this.WithFile (file:File) = { this with file = Some file}
+        member this.WithEmbed(embed) = { this with embed = embed}
+            
         member this.WithFile(name:string, body) =
             let ext = name.[name.LastIndexOf('.')..]
             let contentType = MimeTypes.tryFind ext
@@ -756,12 +750,29 @@ module MessageCreate =
             let file = 
                 {   mime=contentType; name=name; content=body }
             this.WithFile(file)
-            
-        member this.WithEmbed(embed) =
-            let rich = Option.defaultValue RichContent.Default this.richContent
-            { this with richContent =
-                        Some { rich with embed=Some embed } }
-                
+
+        member this.HasFile() =
+            // TODO: Should check for attachment within embed values 
+            //       https://discordapp.com/developers/docs/resources/channel#create-message-using-attachments-within-embeds
+            let containsAttachment x = true
+            match this.file with
+            | Some _ -> true
+            | None -> 
+                match this.embed with
+                | Some embed -> 
+                    //TODO: Create a function to do theese checks.
+                    if embed.footer.IsSome && embed.footer.Value.iconURL.IsSome && containsAttachment embed.footer.Value.iconURL.Value then
+                        true
+                    else if embed.author.IsSome && embed.author.Value.iconURL.IsSome && containsAttachment embed.author.Value.iconURL.Value then
+                        true
+                    else if embed.image.IsSome && embed.image.Value.url.IsSome && containsAttachment embed.image.Value.url.Value then
+                        true
+                    else if embed.thumbnail.IsSome && embed.thumbnail.Value.url.IsSome && containsAttachment embed.thumbnail.Value.url.Value then
+                        true
+                    else
+                        false
+                | None -> false
+
 type WebGetReactionsParams = {
         before  : Snowflake option
         after   : Snowflake option
