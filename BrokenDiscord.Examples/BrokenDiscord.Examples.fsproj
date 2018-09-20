@@ -63,6 +63,9 @@
     <Compile Include="Ping\Ping.fs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MessageEmbed\MessageEmbed.fs" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="Chessie">
       <HintPath>..\packages\Chessie.0.6.0\lib\net40\Chessie.dll</HintPath>
     </Reference>
