@@ -293,7 +293,11 @@ type Embed = {
         provider    : EmbedProvider option
         author      : EmbedAuthor option
         fields      : EmbedField[] option
-    }
+    } with
+    static member Default = {title=None; kind = None; description = None; url = None; timestamp = None; 
+                             color = None; footer = None; image = None; thumbnail = None; video = None; 
+                             provider = None; author = None; fields = None}
+    static member Simple title description = { Embed.Default with title = Some title; description = Some description}
 
 type Attachment = {
         id          : Snowflake
@@ -739,7 +743,7 @@ module MessageCreate =
             let f = Option.defaultValue ([| |]) this.files
             { this with files = Some (Array.append f [| file |]) }
 
-        member this.WithEmbed(embed) = { this with embed = embed}
+        member this.WithEmbed(embed) = { this with embed = Some embed}
             
         member this.WithFile(name:string, body) =
             let ext = name.[name.LastIndexOf('.')..]
