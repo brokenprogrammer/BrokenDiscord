@@ -150,24 +150,26 @@ type Client (token : string) =
     member this.CreateMessage (chid : Snowflake) (args : MessageCreate.T) =
         let unwrap = function Some x -> [x] | None -> []
         if args.HasFile() then //TODO: This branch of the if statement is probably broken, need propper formatting.
-            let body = 
-                let embed = 
+            let body =
+                let rc = 
                     args.embed
                     |> Option.map
-                        (fun e -> NameValue(
+                        (fun rc -> NameValue(
                                     "payload_json",
-                                    toJson <| JProperty("embed", toJson e)))
-                match args.file with
-                | Some f -> [FormData.FormFile(f.name, (f.name, f.mime, StreamData f.content))]
+                                    toJson <| JProperty("embed", toJson rc)))
+                
+                match args.files with
+                | Some files ->[ for f in files do
+                                    yield FormData.FormFile(f.name, (f.name, f.mime, StreamData f.content)) ]
                 | None -> []
                 |> List.append
                     <| List.concat [
-                    [NameValue("content", args.content)]
-                    unwrap embed
-                    args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
-                    args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
-
-            restForm<Message> token Post 
+                        [NameValue("content", args.content)]
+                        unwrap rc
+                        args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
+                        args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
+         
+            restForm<Message> token Post
             <| historyEndpoint chid
             <| body
         else 

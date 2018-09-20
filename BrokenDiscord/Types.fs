@@ -725,17 +725,20 @@ module MessageCreate =
     type File = {
             mime : ContentType; name: string
             content: System.IO.Stream }
-
+      
     type T = {
             content     : string
             nonce       : Snowflake option
             tts         : bool option
-            file        : File option
             embed       : Embed option
+            files       : File[] option
         } with
-        static member Default = { content=""; nonce=None; tts=None; file = None; embed=None;}
+        static member Default = { content=""; nonce=None; tts=None; embed = None; files = None}
         static member New content = { T.Default with content=content }
-        member this.WithFile (file:File) = { this with file = Some file}
+        member this.WithFile (file:File) = 
+            let f = Option.defaultValue ([| |]) this.files
+            { this with files = Some (Array.append f [| file |]) }
+
         member this.WithEmbed(embed) = { this with embed = embed}
             
         member this.WithFile(name:string, body) =
@@ -752,26 +755,9 @@ module MessageCreate =
             this.WithFile(file)
 
         member this.HasFile() =
-            // TODO: Should check for attachment within embed values 
-            //       https://discordapp.com/developers/docs/resources/channel#create-message-using-attachments-within-embeds
-            let containsAttachment x = true
-            match this.file with
-            | Some _ -> true
-            | None -> 
-                match this.embed with
-                | Some embed -> 
-                    //TODO: Create a function to do theese checks.
-                    if embed.footer.IsSome && embed.footer.Value.iconURL.IsSome && containsAttachment embed.footer.Value.iconURL.Value then
-                        true
-                    else if embed.author.IsSome && embed.author.Value.iconURL.IsSome && containsAttachment embed.author.Value.iconURL.Value then
-                        true
-                    else if embed.image.IsSome && embed.image.Value.url.IsSome && containsAttachment embed.image.Value.url.Value then
-                        true
-                    else if embed.thumbnail.IsSome && embed.thumbnail.Value.url.IsSome && containsAttachment embed.thumbnail.Value.url.Value then
-                        true
-                    else
-                        false
-                | None -> false
+            match this.files with
+            | Some files -> files.Length <> 0
+            | None -> false
 
 type WebGetReactionsParams = {
         before  : Snowflake option
