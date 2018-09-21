@@ -1,4 +1,6 @@
-﻿// Learn more about F# at http://fsharp.org
+﻿module Ping
+
+// Learn more about F# at http://fsharp.org
 
 open System
 open BrokenDiscord.Client
