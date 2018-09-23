@@ -1,4 +1,4 @@
-﻿module Ping
+module MessageEmbed
 
 // Learn more about F# at http://fsharp.org
 
@@ -9,19 +9,21 @@ open BrokenDiscord.Types
 open Hopac
 open Hopac.Infixes
 
-let token = Environment.GetEnvironmentVariable "PING_BOT_TOKEN"
+let token = Environment.GetEnvironmentVariable "MESSAGEEMBED_BOT_TOKEN"
 let client = new Client(token)
 
-let pong (m : Message) =
+let sendMessageEmbed (m : Message) =
     job {
-        if m.content = "!ping" then
-            return! client.CreateMessage m.channelId <| MessageCreate.T.New "pong!"
+        if m.content = "!sendEmbed" then
+            let embed = {Embed.Simple "My Title" "Cool Description" with color = Some 0xFFF}
+            let message : MessageCreate.T = MessageCreate.T.Default.WithEmbed(embed)
+            return! client.CreateMessage m.channelId message
                     |> Job.startIgnore
         else return ()
     } |> start
 
 let handleEvents = function
-    | MessageCreate m -> (pong m)
+    | MessageCreate m -> (sendMessageEmbed m)
     | _ -> ()
 
 [<EntryPoint>]

@@ -7,8 +7,6 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BrokenDiscord", "BrokenDisc
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BrokenDiscord.Test", "BrokenDiscord.Test\BrokenDiscord.Test.fsproj", "{8A0318E6-F22C-4FB2-B0B5-3C2B31656E28}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BrokenDiscord.Examples", "BrokenDiscord.Examples\BrokenDiscord.Examples.fsproj", "{1DE77703-C63D-4182-8230-65BA6247C597}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

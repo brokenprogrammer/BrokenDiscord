@@ -149,29 +149,32 @@ type Client (token : string) =
     /// Post a message to a guild text or DM channel.
     member this.CreateMessage (chid : Snowflake) (args : MessageCreate.T) =
         let unwrap = function Some x -> [x] | None -> []
-        let body =
-            let rc = 
-                args.richContent
-                |> Option.map
-                    (fun rc -> NameValue(
-                                "payload_json",
-                                toJson <| JProperty("embed", toJson rc)))
-            match args.richContent with
-            | Some rc ->
-                [ for f in rc.files do
-                    yield FormData.FormFile(f.name, (f.name, f.mime, StreamData f.content)) ]
-            | None -> []
-            |> List.append
-                <| List.concat [
-                    [NameValue("content", args.content)]
-                    unwrap rc
-                    args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
-                    args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
+        if args.HasFile() then //TODO(#48): This branch of the if statement is probably broken, need propper formatting.
+            let body =         //           the embed is not properly sent when adding files to the request.
+                let rc = 
+                    args.embed
+                    |> Option.map
+                        (fun rc -> NameValue(
+                                    "payload_json",
+                                    toJson <| rc))
+                
+                match args.files with
+                | Some files ->[ for f in files do
+                                    yield FormData.FormFile(f.name, (f.name, f.mime, f.content)) ]
+                | None -> []
+                |> List.append
+                    <| List.concat [
+                        [NameValue("content", args.content)]
+                        unwrap rc
+                        args.nonce |> Option.map (fun x -> NameValue("nonce", string x)) |> unwrap
+                        args.tts |> Option.map (fun x -> NameValue("tts", string x)) |> unwrap ]
          
-        restForm<Message> token Post
-        <| historyEndpoint chid
-        <| body
-
+            restForm<Message> token Post
+            <| historyEndpoint chid
+            <| body
+        else 
+            restPostCall<_,Message> token <| historyEndpoint chid <| Some args
+        
     /// Create a reaction for the message. 
     member this.CreateReaction chid mgid emote =
         restPutThunk<unit> token <| userReactionsEndpoint chid mgid emote Me <| None

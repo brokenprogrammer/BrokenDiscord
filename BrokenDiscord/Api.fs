@@ -160,6 +160,7 @@ let restForm<'t> token method path (data : FormData list) =
     Request.createUrl method <| basePath path
     |> setHeaders token
     |> Request.body (RequestBody.BodyForm data)
+    |> Request.setHeader(ContentType <| ContentType.create ("multipart", "form-data"))
     |> Response.parseRtn<'t>
 
 // these expect return values from the cloud.

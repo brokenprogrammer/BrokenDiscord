@@ -228,20 +228,21 @@ type Channel = {
     interface IMentionable with
         member x.Mention = sprintf "<#%d>" x.id
     
-
 type EmbedThumbnail = {
         url         : string option
         [<JsonProperty "proxy_url">]
         proxyURL    : string option
         height      : int option
         width       : int option
-    }
+    } with
+    static member Default = {url = None; proxyURL = None; height = None; width = None}
 
 type EmbedVideo = {
         url     : string option
         height  : int option
         width   : int option
-    }
+    } with
+    static member Default = {url = None; height = None; width = None}
 
 type EmbedImage = {
         url         : string option
@@ -249,12 +250,14 @@ type EmbedImage = {
         proxyURL    : string option
         height      : int option
         width       : int option
-    }
+    } with
+    static member Default = {url = None; proxyURL = None; height = None; width = None}
 
 type EmbedProvider = {
         name    : string option
         url     : string option
-    }
+    } with
+    static member Default = {name = None; url = None}
 
 type EmbedAuthor = {
         name            : string option
@@ -263,7 +266,8 @@ type EmbedAuthor = {
         iconURL         : string option
         [<JsonProperty "proxy_icon_url">]
         proxyIconURL    : string option
-    }
+    } with
+    static member Default = {name = None; url = None; iconURL = None; proxyIconURL = None}
 
 type EmbedFooter = {
         text            : string
@@ -271,14 +275,14 @@ type EmbedFooter = {
         iconURL         : string option
         [<JsonProperty "proxy_icon_url">]
         proxyIconURL    : string option
-    }
+    } with
+    static member Default = {text = ""; iconURL = None; proxyIconURL = None}
 
 type EmbedField = {
         name    : string
         value   : string
         inlinep : bool option
     }
-
     
 type Embed = {
         title       : string option
@@ -295,7 +299,11 @@ type Embed = {
         provider    : EmbedProvider option
         author      : EmbedAuthor option
         fields      : EmbedField[] option
-    }
+    } with
+    static member Default = {title=None; kind = None; description = None; url = None; timestamp = None; 
+                             color = None; footer = None; image = None; thumbnail = None; video = None; 
+                             provider = None; author = None; fields = None}
+    static member Simple title description = { Embed.Default with title = Some title; description = Some description}
 
 type Attachment = {
         id          : Snowflake
@@ -726,24 +734,23 @@ type WebCreateMessageParams = {
 module MessageCreate = 
     type File = {
             mime : ContentType; name: string
-            content: System.IO.Stream }
-    type RichContent =
-        { embed : Embed option; files : File[] }
-        with static member Default = { embed=None; files=[| |] }
-        
+            content: FileData }
+      
     type T = {
             content     : string
             nonce       : Snowflake option
             tts         : bool option
-            richContent : RichContent option
+            embed       : Embed option
+            files       : File[] option
         } with
-        static member Default = { content=""; nonce=None; tts=None; richContent=None }
+        static member Default = { content=""; nonce=None; tts=None; embed = None; files = None}
         static member New content = { T.Default with content=content }
-        member this.WithFile (file:File) =
-            let rich = Option.defaultValue RichContent.Default this.richContent
-            { this with richContent = 
-                        Some { rich with files=(Array.append rich.files [| file |]) } }
-                        
+        member this.WithFile (file:File) = 
+            let f = Option.defaultValue ([| |]) this.files
+            { this with files = Some (Array.append f [| file |]) }
+
+        member this.WithEmbed(embed) = { this with embed = Some embed}
+            
         member this.WithFile(name:string, body) =
             let ext = name.[name.LastIndexOf('.')..]
             let contentType = MimeTypes.tryFind ext
@@ -756,12 +763,12 @@ module MessageCreate =
             let file = 
                 {   mime=contentType; name=name; content=body }
             this.WithFile(file)
-            
-        member this.WithEmbed(embed) =
-            let rich = Option.defaultValue RichContent.Default this.richContent
-            { this with richContent =
-                        Some { rich with embed=Some embed } }
-                
+
+        member this.HasFile() =
+            match this.files with
+            | Some files -> files.Length <> 0
+            | None -> false
+
 type WebGetReactionsParams = {
         before  : Snowflake option
         after   : Snowflake option
