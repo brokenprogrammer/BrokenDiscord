@@ -22,7 +22,7 @@ let private userAgent =
 
 let private setHeaders token req =
     req
-    |> Request.setHeader (Authorization (sprintf "Bot %s" token))
+    |> Request.setHeader (Authorization token)
     |> Request.setHeader (UserAgent userAgent)
 
 let private basePath = sprintf "https://discordapp.com/api/v6/%s"
