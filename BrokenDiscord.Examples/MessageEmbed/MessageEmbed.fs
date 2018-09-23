@@ -16,7 +16,7 @@ let sendMessageEmbed (m : Message) =
     job {
         if m.content = "!sendEmbed" then
             let embed = {Embed.Simple "My Title" "Cool Description" with color = Some 0xFFF}
-            let message : MessageCreate.T = (MessageCreate.T.New "pong!").WithEmbed(embed)
+            let message : MessageCreate.T = MessageCreate.T.Default.WithEmbed(embed)
             return! client.CreateMessage m.channelId message
                     |> Job.startIgnore
         else return ()

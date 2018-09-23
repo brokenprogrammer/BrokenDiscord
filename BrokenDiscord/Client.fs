@@ -149,18 +149,18 @@ type Client (token : string) =
     /// Post a message to a guild text or DM channel.
     member this.CreateMessage (chid : Snowflake) (args : MessageCreate.T) =
         let unwrap = function Some x -> [x] | None -> []
-        if args.HasFile() then //TODO: This branch of the if statement is probably broken, need propper formatting.
-            let body =
+        if args.HasFile() then //TODO(#48): This branch of the if statement is probably broken, need propper formatting.
+            let body =         //           the embed is not properly sent when adding files to the request.
                 let rc = 
                     args.embed
                     |> Option.map
                         (fun rc -> NameValue(
                                     "payload_json",
-                                    toJson <| JProperty("embed", toJson rc)))
+                                    toJson <| rc))
                 
                 match args.files with
                 | Some files ->[ for f in files do
-                                    yield FormData.FormFile(f.name, (f.name, f.mime, StreamData f.content)) ]
+                                    yield FormData.FormFile(f.name, (f.name, f.mime, f.content)) ]
                 | None -> []
                 |> List.append
                     <| List.concat [

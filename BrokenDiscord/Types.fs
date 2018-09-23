@@ -234,13 +234,15 @@ type EmbedThumbnail = {
         proxyURL    : string option
         height      : int option
         width       : int option
-    }
+    } with
+    static member Default = {url = None; proxyURL = None; height = None; width = None}
 
 type EmbedVideo = {
         url     : string option
         height  : int option
         width   : int option
-    }
+    } with
+    static member Default = {url = None; height = None; width = None}
 
 type EmbedImage = {
         url         : string option
@@ -248,12 +250,14 @@ type EmbedImage = {
         proxyURL    : string option
         height      : int option
         width       : int option
-    }
+    } with
+    static member Default = {url = None; proxyURL = None; height = None; width = None}
 
 type EmbedProvider = {
         name    : string option
         url     : string option
-    }
+    } with
+    static member Default = {name = None; url = None}
 
 type EmbedAuthor = {
         name            : string option
@@ -262,7 +266,8 @@ type EmbedAuthor = {
         iconURL         : string option
         [<JsonProperty "proxy_icon_url">]
         proxyIconURL    : string option
-    }
+    } with
+    static member Default = {name = None; url = None; iconURL = None; proxyIconURL = None}
 
 type EmbedFooter = {
         text            : string
@@ -270,7 +275,8 @@ type EmbedFooter = {
         iconURL         : string option
         [<JsonProperty "proxy_icon_url">]
         proxyIconURL    : string option
-    }
+    } with
+    static member Default = {text = ""; iconURL = None; proxyIconURL = None}
 
 type EmbedField = {
         name    : string
@@ -728,7 +734,7 @@ type WebCreateMessageParams = {
 module MessageCreate = 
     type File = {
             mime : ContentType; name: string
-            content: System.IO.Stream }
+            content: FileData }
       
     type T = {
             content     : string
